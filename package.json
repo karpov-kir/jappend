@@ -21,7 +21,7 @@
     "dist/**/*.d.ts"
   ],
   "scripts": {
-    "benchmark": "bun ./benchmark.ts default && bun ./benchmark.ts buffer && bun ./benchmark.ts infinite-buffer && bun ./benchmark.ts library && bun ./benchmark.ts fire-and-forget",
+    "benchmark": "bun ./benchmark.ts all",
     "build": "bun run clean && bun run build.ts",
     "clean": "rimraf dist && rimraf tsconfig.types.tsbuildinfo",
     "lint": "eslint \"{src,tests}/**/*.{ts,tsx,js,jsx,json}\"",
