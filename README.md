@@ -71,7 +71,7 @@ const writer = newJappendWriter('data.json', {
   suppressThresholdFlushErrors: true, // Enable fire-and-forget
 });
 
-// Some event emitter that generates data relative often
+// Some event emitter that generates data relatively often
 eventEmitter.on('some-event', (data) => {
   // Append data without awaiting
   writer.append({ data, timestamp: Date.now() })
