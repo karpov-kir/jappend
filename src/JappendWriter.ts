@@ -64,7 +64,7 @@ export class JappendWriter {
     private readonly filePath: string,
     options: WriterOptions,
   ) {
-    validationOptions(filePath, options);
+    validateOptions(filePath, options);
     this.options = this.convertOptions(options);
   }
 
@@ -243,7 +243,7 @@ export class JappendWriter {
   }
 }
 
-function validationOptions(filePath: string, options: WriterOptions) {
+function validateOptions(filePath: string, options: WriterOptions) {
   if (!filePath.trim()) {
     throw new Error(`File path must be a non-empty string, but got "${filePath}"`);
   }
