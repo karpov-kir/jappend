@@ -26,7 +26,7 @@ jobs:
     name: Release
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ inputs.github-ref || github.sha }}
 
@@ -40,7 +40,7 @@ jobs:
           git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/karpov-kir/jappend.git
 
       - name: Bun prepare
-        uses: karpov-kir/github-actions/bun-prepare@main
+        uses: kk-forge-engineering/github-actions/bun-prepare@v1
 
       - name: Build
         run: bun run build
