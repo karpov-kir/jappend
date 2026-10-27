@@ -272,17 +272,17 @@ bun install
 ### Testing
 
 ```bash
+# Run unit and integration tests
+bun run test
+
 # Run unit tests
-bun test
+bun run test:unit
 
 # Run unit tests in watch mode
 bun run test:watch
 
 # Run integration tests
 bun run test:integration
-
-# Run unit and integration tests
-bun run test:all
 
 # Run performance benchmarks
 bun run benchmark

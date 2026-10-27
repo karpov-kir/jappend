@@ -4,4 +4,3 @@ dist
 bigJsonFile.json
 /coverage
 test-file-*.json
-test-report.xml

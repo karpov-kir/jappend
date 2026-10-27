@@ -22,7 +22,10 @@ on:
 
 jobs:
   release:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    # release.sh pushes the version commit and tag with the token that actions/checkout persists.
+    permissions:
+      contents: write
     name: Release
     steps:
       - name: Checkout
@@ -34,16 +37,14 @@ jobs:
         run: |
           git config --global user.email "github-actions@users.noreply.github.com"
           git config --global user.name "github-actions"
-      
-      - name: Authenticate Git
-        run: |
-          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/karpov-kir/jappend.git
 
-      - name: Bun prepare
-        uses: kk-forge-engineering/gh-actions/bun-prepare@v1
+      - name: Install the tools from mise.toml
+        uses: jdx/mise-action@v5
+
+      - run: mise run setup
 
       - name: Build
-        run: bun run build
+        run: mise run build
 
       - name: Release to NPM
         run: npm run release
