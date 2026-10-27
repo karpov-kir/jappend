@@ -40,7 +40,7 @@ jobs:
           git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/karpov-kir/jappend.git
 
       - name: Bun prepare
-        uses: kk-forge-engineering/github-actions/bun-prepare@v1
+        uses: kk-forge-engineering/gh-actions/bun-prepare@v1
 
       - name: Build
         run: bun run build
