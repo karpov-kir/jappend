@@ -266,7 +266,7 @@ someStream.pipe(analyticsStream).on('finish', async () => {
 ### Setup
 
 ```bash
-bun install
+mise run setup
 ```
 
 ### Testing
