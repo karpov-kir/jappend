@@ -18,5 +18,7 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedIndexedAccess": true,
     "noImplicitOverride": true,
-  }
+  },
+  // dist is build output, which the build rewrites while `lint:tsc` runs beside it.
+  "exclude": ["node_modules", "dist"]
 }

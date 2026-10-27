@@ -1,10 +1,5 @@
 # Release
 
-## Requirements
-- Make Sure `GITHUB_TOKEN` has write access
-  - Go to Settings > Actions > General > Workflow permissions
-  - Check "Read and write permissions"
-
 ## Production
 - Merge a PR to the `main` branch
 - Ensure there are some unreleased changes in the `CHANGELOG.md`

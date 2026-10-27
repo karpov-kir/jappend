@@ -1,3 +1,27 @@
 [tools]
 node = "24"
-bun = "1.2.17"
+bun = "1"
+
+[tasks.setup]
+description = "Install every dependency"
+run = "bun install --frozen-lockfile"
+
+[tasks.check]
+description = "The gate before a commit: every linter, the build and every test"
+depends = ["lint", "build", "test"]
+
+[tasks."check:ci"]
+description = "check with coverage and the SonarQube reports, as CI runs it"
+depends = ["lint", "build", "test:ci"]
+
+[tasks.lint]
+run = "bun run lint"
+
+[tasks.build]
+run = "bun run build"
+
+[tasks.test]
+run = "bun run test"
+
+[tasks."test:ci"]
+run = "bun run test:ci"

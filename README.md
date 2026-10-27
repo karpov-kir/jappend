@@ -7,11 +7,6 @@ A memory-efficient Node.js library for appending entries to large JSON array fil
 [![npm version](https://img.shields.io/npm/v/jappend)](https://www.npmjs.com/package/jappend)
 [![npm dm](https://img.shields.io/npm/dm/jappend.svg)](https://www.npmjs.com/package/jappend)
 [![npm dt](https://img.shields.io/npm/dt/jappend.svg)](https://www.npmjs.com/package/jappend)
-[![Maintainability Rating](https://sq.kk-forge.com/api/project_badges/measure?project=jappend&metric=sqale_rating&token=sqb_1071560f56d08b7c8719d22f7b0b0114606ab32c)](https://sq.kk-forge.com/dashboard?id=jappend)
-[![Quality Gate Status](https://sq.kk-forge.com/api/project_badges/measure?project=jappend&metric=alert_status&token=sqb_1071560f56d08b7c8719d22f7b0b0114606ab32c)](https://sq.kk-forge.com/dashboard?id=jappend)
-[![Coverage](https://sq.kk-forge.com/api/project_badges/measure?project=jappend&metric=coverage&token=sqb_1071560f56d08b7c8719d22f7b0b0114606ab32c)](https://sq.kk-forge.com/dashboard?id=jappend)
-[![Code Smells](https://sq.kk-forge.com/api/project_badges/measure?project=jappend&metric=code_smells&token=sqb_1071560f56d08b7c8719d22f7b0b0114606ab32c)](https://sq.kk-forge.com/dashboard?id=jappend)
-[![Technical Debt](https://sq.kk-forge.com/api/project_badges/measure?project=jappend&metric=sqale_index&token=sqb_1071560f56d08b7c8719d22f7b0b0114606ab32c)](https://sq.kk-forge.com/dashboard?id=jappend)
 
 ## 🚀 Features
 
@@ -271,23 +266,23 @@ someStream.pipe(analyticsStream).on('finish', async () => {
 ### Setup
 
 ```bash
-bun install
+mise run setup
 ```
 
 ### Testing
 
 ```bash
+# Run unit and integration tests
+bun run test
+
 # Run unit tests
-bun test
+bun run test:unit
 
 # Run unit tests in watch mode
 bun run test:watch
 
 # Run integration tests
 bun run test:integration
-
-# Run unit and integration tests
-bun run test:all
 
 # Run performance benchmarks
 bun run benchmark
