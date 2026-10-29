@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 
-import { jappend } from '../src/jappend';
-import { InMemoryFileHandle } from './InMemoryFileHandle';
+import { InMemoryFileHandle } from '../tests/InMemoryFileHandle';
+import { jappend } from './jappend';
 
 test('writes an initial array if the file is empty and `initArray` is `true`', async () => {
   const inMemoryFileHandle = new InMemoryFileHandle();
