@@ -4,6 +4,6 @@ on:
     branches: ["**"]
 jobs:
   ci:
-    uses: kk-forge-engineering/gh-actions/.github/workflows/ci.yml@v2
+    uses: kk-forge-engineering/gh-actions/.github/workflows/ci.yml@v3
     permissions: { contents: read, pull-requests: read }
     secrets: { SONAR_TOKEN: "${{ secrets.SONAR_TOKEN }}" }
