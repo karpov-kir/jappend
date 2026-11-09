@@ -6,7 +6,7 @@ import path from 'path';
 await build();
 await moveFiles();
 await patchImportsPaths();
-await eslintFixDist();
+await formatDist();
 
 async function build() {
   await $`npx tsc --project tsconfig.types.json`;
@@ -29,11 +29,14 @@ async function patchImportsPaths() {
   await writeFile(dtsPath, patched, 'utf8');
 }
 
-// Just to have the built files nicely formatted
-async function eslintFixDist() {
-  try {
-    await $`npx eslint dist --fix`.quiet();
-  } catch (_error) {
-    console.warn(`ESLint errors suppressed`);
+// Just to have the built files nicely formatted. oxfmt skips the git-ignored dist, so each file goes through stdin.
+async function formatDist() {
+  for (const file of await readdir("dist", { recursive: true })) {
+    if (!/\.(js|ts)$/.test(file)) {
+      continue;
+    }
+    const filePath = path.join("dist", file);
+    const formatted = await $`oxfmt --stdin-filepath=${filePath} < ${Bun.file(filePath)}`.text();
+    await writeFile(filePath, formatted, "utf8");
   }
 }

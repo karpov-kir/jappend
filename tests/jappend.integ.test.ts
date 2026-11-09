@@ -77,11 +77,9 @@ test('streams data to a file', async () => {
 
   const deferred = createDeferred();
   const writeStream = new WriteStream(jappendWriter);
-  let flushPromise: Promise<void> | undefined;
   stream.pipe(writeStream).on('finish', async () => {
     try {
       await jappendWriter.flush({ shutdown: true });
-      await flushPromise;
     } catch (error) {
       console.error('Failed to flush analytics data:', error);
     }
