@@ -1,6 +1,5 @@
 import { $ } from "bun";
-import { readFile, rename, rm, writeFile } from "fs/promises";
-import { readdir } from "fs/promises";
+import { readdir, readFile, rename, rm, writeFile } from "fs/promises";
 import path from "path";
 
 await build();
@@ -25,18 +24,21 @@ async function moveFiles() {
 async function patchImportsPaths() {
   const dtsPath = "dist/tests/InMemoryFileHandle.d.ts";
   const dtsContent = await readFile(dtsPath, "utf8");
-  const patched = dtsContent.replace(`from '../src`, `from '..`);
+  const patched = dtsContent.replace(/from (["'])\.\.\/src\//g, "from $1../");
+  if (patched === dtsContent) {
+    throw new Error(`${dtsPath} has no ../src import to point at the package root`);
+  }
   await writeFile(dtsPath, patched, "utf8");
 }
 
-// Just to have the built files nicely formatted. oxfmt skips the git-ignored dist, so each file goes through stdin.
+/**
+ * Formats the built JS and declaration files with oxfmt. oxfmt skips git-ignored `dist` when it walks a directory, so the
+ * function names each file.
+ */
 async function formatDist() {
-  for (const file of await readdir("dist", { recursive: true })) {
-    if (!/\.(js|ts)$/.test(file)) {
-      continue;
-    }
-    const filePath = path.join("dist", file);
-    const formatted = await $`oxfmt --stdin-filepath=${filePath} < ${Bun.file(filePath)}`.text();
-    await writeFile(filePath, formatted, "utf8");
-  }
+  const files = await readdir("dist", { recursive: true });
+  const builtFiles = files
+    .filter((file) => /\.(js|ts)$/.test(file))
+    .map((file) => path.join("dist", file));
+  await $`oxfmt ${builtFiles}`;
 }

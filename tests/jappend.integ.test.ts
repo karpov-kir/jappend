@@ -81,7 +81,7 @@ test("streams data to a file", async () => {
     bufferFlushThreshold: 10,
   });
 
-  const deferred = createDeferred();
+  const deferred = Promise.withResolvers<void>();
   const writeStream = new WriteStream(jappendWriter);
   stream.pipe(writeStream).on("finish", async () => {
     try {
@@ -127,24 +127,4 @@ async function removeAllTestJsonFiles(): Promise<void> {
 async function verifyFileContent(fileName: string, expectedContent: unknown): Promise<void> {
   const content = await fs.readFile(fileName, "utf8");
   expect(JSON.parse(content)).toEqual(expectedContent);
-}
-
-function createDeferred<T = void>(): {
-  promise: Promise<T>;
-  resolve: (value: T) => void;
-  reject: (error: T) => void;
-} {
-  let resolve: ((value: T) => void) | undefined = undefined;
-  let reject: ((error: unknown) => void) | undefined = undefined;
-
-  const promise = new Promise<T>((res, rej) => {
-    resolve = res;
-    reject = rej;
-  });
-
-  if (!resolve || !reject) {
-    throw new Error("Deferred promise must have both resolve and reject functions defined.");
-  }
-
-  return { promise, resolve, reject };
 }
