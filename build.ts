@@ -9,7 +9,6 @@ await formatDist();
 
 async function build() {
   await $`npx tsc --project tsconfig.types.json`;
-  await $`rimraf tsconfig.types.tsbuildinfo`;
 }
 
 async function moveFiles() {

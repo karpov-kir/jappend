@@ -23,7 +23,7 @@
   "scripts": {
     "benchmark": "bun ./benchmark.ts all",
     "build": "bun run clean && bun run build.ts",
-    "clean": "rimraf dist && rimraf tsconfig.types.tsbuildinfo",
+    "clean": "rimraf dist",
     "lint": "bun run lint:oxlint && bun run lint:format && bun run lint:tsc",
     "lint:fix": "bun run lint:oxlint:fix && bun run lint:format:fix",
     "lint:oxlint": "oxlint --deny-warnings",
