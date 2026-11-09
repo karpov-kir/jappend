@@ -1,7 +1,7 @@
 import { describe, expect, test, vi } from 'vitest';
 
-import { newJappendWriter } from '../src/jappend';
-import { InMemoryFileHandle } from './InMemoryFileHandle';
+import { InMemoryFileHandle } from '../tests/InMemoryFileHandle';
+import { newJappendWriter } from './jappend';
 
 describe('Entry buffering', () => {
   test(`buffers entries and flushes them to the file when the buffer size is reached`, async () => {

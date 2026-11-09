@@ -3,6 +3,6 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   test: {
     name: 'unit',
-    include: ['tests/**/*.test.ts'],
+    include: ['**/*.unit.test.ts'],
   },
 });
