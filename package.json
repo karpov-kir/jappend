@@ -30,7 +30,7 @@
     "lint:oxlint:fix": "oxlint --fix",
     "lint:format": "oxfmt --check",
     "lint:format:fix": "oxfmt",
-    "lint:tsc": "tsc --noEmit",
+    "lint:tsc": "tsc",
     "release": "./release/release.sh",
     "test": "vitest run",
     "test:ci": "vitest run --coverage",
