@@ -6,9 +6,6 @@
     "module": "Preserve",
     "moduleDetection": "force",
 
-    // Bundler mode
-    "moduleResolution": "bundler",
-    "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": true,
     "noEmit": true,
 
@@ -17,8 +14,8 @@
     "skipLibCheck": true,
     "noFallthroughCasesInSwitch": true,
     "noUncheckedIndexedAccess": true,
-    "noImplicitOverride": true,
+    "noImplicitOverride": true
   },
   // dist is build output, which the build rewrites while `lint:tsc` runs beside it.
-  "exclude": ["node_modules", "dist"]
+  "exclude": ["dist"]
 }

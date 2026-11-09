@@ -1,8 +1,8 @@
-import type { Mode, PathLike } from 'fs';
-import type { FileHandle } from 'fs/promises';
-import fs from 'fs/promises';
+import type { Mode, PathLike } from "fs";
+import type { FileHandle } from "fs/promises";
+import fs from "fs/promises";
 
-import { countNewLinesAndSpacesBeforeLastBracket, removeFirstAndLastBrackets } from './utils';
+import { countNewLinesAndSpacesBeforeLastBracket, removeFirstAndLastBrackets } from "./utils";
 
 /**
  * A minimal interface for a file handle that supports basic file operations.
@@ -14,7 +14,7 @@ import { countNewLinesAndSpacesBeforeLastBracket, removeFirstAndLastBrackets } f
  * @property {function} truncate - Truncates the file to a specified length
  * @property {function} stat - Gets the file statistics
  */
-export type MinimalFileHandle = Pick<FileHandle, 'read' | 'write' | 'close' | 'truncate' | 'stat'>;
+export type MinimalFileHandle = Pick<FileHandle, "read" | "write" | "close" | "truncate" | "stat">;
 
 /**
  * Options for the {@link JappendWriter} class.
@@ -122,13 +122,15 @@ export class JappendWriter {
     fileTail: string;
     trimmedFileTail: string;
   }) {
-    const jsonString = removeFirstAndLastBrackets(JSON.stringify(dataToWrite, null, this.options.indent));
+    const jsonString = removeFirstAndLastBrackets(
+      JSON.stringify(dataToWrite, null, this.options.indent),
+    );
 
     const shouldInsertComma = /[^\s[]\s*]$/.test(trimmedFileTail);
-    const maybeNewLine = this.options.pretty ? '\n' : '';
-    const maybeIndentation = this.options.pretty ? ' '.repeat(this.options.indent) : '';
+    const maybeNewLine = this.options.pretty ? "\n" : "";
+    const maybeIndentation = this.options.pretty ? " ".repeat(this.options.indent) : "";
 
-    const insertion = `${shouldInsertComma ? ',' : ''}${maybeNewLine}${maybeIndentation}${jsonString}${maybeNewLine}]`;
+    const insertion = `${shouldInsertComma ? "," : ""}${maybeNewLine}${maybeIndentation}${jsonString}${maybeNewLine}]`;
 
     const truncatePosition =
       readPosition +
@@ -155,7 +157,7 @@ export class JappendWriter {
     await fileHandle.read(buffer, 0, bufferSize, readPosition);
 
     const fileTail = buffer.toString();
-    const lastBracketIndex = fileTail.lastIndexOf(']');
+    const lastBracketIndex = fileTail.lastIndexOf("]");
     const trimmedFileTail = fileTail.trim();
 
     return {
@@ -176,18 +178,22 @@ export class JappendWriter {
     try {
       while (this.buffer.length > 0) {
         dataToWrite = this.buffer.splice(0, this.buffer.length);
-        fileHandle = await this.options.fileOpen(this.filePath, this.options.initArray ? 'a+' : 'r+');
+        fileHandle = await this.options.fileOpen(
+          this.filePath,
+          this.options.initArray ? "a+" : "r+",
+        );
 
-        const { fileTail, lastBracketIndex, trimmedFileTail, readPosition } = await this.readFileTail(fileHandle);
+        const { fileTail, lastBracketIndex, trimmedFileTail, readPosition } =
+          await this.readFileTail(fileHandle);
 
-        if (trimmedFileTail === '' && this.options.initArray) {
+        if (trimmedFileTail === "" && this.options.initArray) {
           await fileHandle.write(JSON.stringify(dataToWrite, null, this.options.indent));
           continue;
         }
 
         if (lastBracketIndex === -1) {
           throw new Error(
-            'The file does not contain a valid JSON array. Please ensure the file contains a valid JSON array before appending data.',
+            "The file does not contain a valid JSON array. Please ensure the file contains a valid JSON array before appending data.",
           );
         }
 
@@ -251,10 +257,12 @@ function validateOptions(filePath: string, options: WriterOptions) {
   if (options.bufferFlushThreshold !== undefined) {
     const isBufferFlushThresholdOneOrGreater = options.bufferFlushThreshold >= 1;
     const isBufferFlushThresholdInteger = Number.isInteger(options.bufferFlushThreshold);
-    const isBufferFlushThresholdInfinity = options.bufferFlushThreshold === Number.POSITIVE_INFINITY;
+    const isBufferFlushThresholdInfinity =
+      options.bufferFlushThreshold === Number.POSITIVE_INFINITY;
 
     const isValid =
-      (isBufferFlushThresholdOneOrGreater && isBufferFlushThresholdInteger) || isBufferFlushThresholdInfinity;
+      (isBufferFlushThresholdOneOrGreater && isBufferFlushThresholdInteger) ||
+      isBufferFlushThresholdInfinity;
 
     if (!isValid) {
       throw new Error(
@@ -270,7 +278,9 @@ function validateOptions(filePath: string, options: WriterOptions) {
     const isValid = isIndentZeroOrGreater && isIndentInteger;
 
     if (!isValid) {
-      throw new Error(`Indent must be one of: positive integer, 0, or undefined, but got ${options.indent}`);
+      throw new Error(
+        `Indent must be one of: positive integer, 0, or undefined, but got ${options.indent}`,
+      );
     }
   }
 }

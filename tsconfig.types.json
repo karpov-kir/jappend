@@ -2,14 +2,9 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "outDir": "./dist",
-    "rootDir": "./",
     "noEmit": false,
-    "declaration": true,
-    "allowImportingTsExtensions": false
+    "declaration": true
   },
-  "include": [
-    "src/**/*.ts",
-    "tests/**/InMemoryFileHandle.ts"
-  ],
+  "include": ["src/**/*.ts", "tests/**/InMemoryFileHandle.ts"],
   "exclude": ["src/**/*.test.ts"]
 }

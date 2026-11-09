@@ -1,24 +1,24 @@
-import fs from 'fs/promises';
-import path from 'path';
+import fs from "fs/promises";
+import path from "path";
 
-import { jappend, newJappendWriter } from './src/jappend';
+import { jappend, newJappendWriter } from "./src/jappend";
 
-const bigJsonFilePath = path.join(__dirname, 'bigJsonFile.json');
+const bigJsonFilePath = path.join(__dirname, "bigJsonFile.json");
 const initialEntryCount = 200000;
 const entryCountToWrite = 50000;
 
 const type = process.argv[2] as
-  | 'default'
-  | 'library'
-  | 'buffer'
-  | 'infinite-buffer'
-  | 'fire-and-forget'
-  | 'all'
+  | "default"
+  | "library"
+  | "buffer"
+  | "infinite-buffer"
+  | "fire-and-forget"
+  | "all"
   | undefined;
 
 if (!type) {
   throw new Error(
-    'Type argument is required. Use: default | library | buffer | infinite-buffer. Usage: bun performance.ts <type>.',
+    "Type argument is required. Use: default | library | buffer | infinite-buffer. Usage: bun performance.ts <type>.",
   );
 }
 
@@ -36,7 +36,7 @@ async function createBigJsonFile() {
     await fs.unlink(bigJsonFilePath);
   }
 
-  await fs.writeFile(bigJsonFilePath, '');
+  await fs.writeFile(bigJsonFilePath, "");
 
   const data = [];
   for (let i = 0; i < initialEntryCount; i++) {
@@ -51,7 +51,7 @@ async function verifyBigJsonFileAndRemove() {
     throw new Error(`File ${bigJsonFilePath} does not exist.`);
   }
 
-  const data = JSON.parse(await fs.readFile(bigJsonFilePath, 'utf-8')) as Entry[];
+  const data = JSON.parse(await fs.readFile(bigJsonFilePath, "utf-8")) as Entry[];
   if (!Array.isArray(data)) {
     throw new Error(`Data in ${bigJsonFilePath} is not an array.`);
   }
@@ -91,7 +91,7 @@ async function appendBigJsonFileDefault() {
       newData.push(createEntry(i));
     },
     onDone: async () => {
-      const existingData = JSON.parse(await fs.readFile(bigJsonFilePath, 'utf-8')) as Entry[];
+      const existingData = JSON.parse(await fs.readFile(bigJsonFilePath, "utf-8")) as Entry[];
       const totalData = [...existingData, ...newData];
       await fs.writeFile(bigJsonFilePath, JSON.stringify(totalData, null, 2));
     },
@@ -156,7 +156,7 @@ async function createBigJsonFileUsingJappendWithInfiniteBuffer() {
 }
 
 async function benchmark(label: string, fn: () => Promise<void>) {
-  console.log('------');
+  console.log("------");
   console.log(`Starting benchmark: ${label}`);
 
   console.log(`Creating a big JSON file with ${initialEntryCount} entries`);
@@ -166,47 +166,53 @@ async function benchmark(label: string, fn: () => Promise<void>) {
 
   const memoryBefore = process.memoryUsage().heapUsed;
 
-  performance.mark('start');
+  performance.mark("start");
   console.log(`Writing ${entryCountToWrite} entries to the big JSON file`);
   await fn();
-  performance.mark('end');
+  performance.mark("end");
 
   const memoryAfter = process.memoryUsage().heapUsed;
   const memoryDiffMb = ((memoryAfter - memoryBefore) / 1024 / 1024).toFixed(2);
 
   await verifyBigJsonFileAndRemove();
 
-  console.log('Verification of the big JSON file completed successfully');
+  console.log("Verification of the big JSON file completed successfully");
 
-  console.log(`Time taken: ${performance.measure(label, 'start', 'end').duration.toFixed(2)} ms`);
+  console.log(`Time taken: ${performance.measure(label, "start", "end").duration.toFixed(2)} ms`);
   console.log(`Memory change: ${memoryDiffMb} MB`);
 }
 
-if (type === 'default' || type === 'all') {
-  await benchmark('Writing to a big JSON file at once using `JSON.stringify`', appendBigJsonFileDefault);
+if (type === "default" || type === "all") {
+  await benchmark(
+    "Writing to a big JSON file at once using `JSON.stringify`",
+    appendBigJsonFileDefault,
+  );
 }
 
-if (type === 'library' || type === 'all') {
-  await benchmark('Writing to a big file line by line using `jappend`', appendBigJsonFileUsingJappend);
+if (type === "library" || type === "all") {
+  await benchmark(
+    "Writing to a big file line by line using `jappend`",
+    appendBigJsonFileUsingJappend,
+  );
 }
 
-if (type === 'fire-and-forget' || type === 'all') {
+if (type === "fire-and-forget" || type === "all") {
   await benchmark(
     `Writing to a big file line by line using \`JappendWriter\` with ${bufferFlushThreshold} entry buffer (fire-and-forget)`,
     appendBigJsonFileUsingJappendFireAndForget,
   );
 }
 
-if (type === 'buffer' || type === 'all') {
+if (type === "buffer" || type === "all") {
   await benchmark(
     `Writing to a big file using \`JappendWriter\` with ${bufferFlushThreshold} entry buffer`,
     createBigJsonFileUsingJappendWithBuffer,
   );
 }
 
-if (type === 'infinite-buffer' || type === 'all') {
+if (type === "infinite-buffer" || type === "all") {
   await benchmark(
-    'Writing to a big file at once using `JappendWriter` with infinite entry buffer',
+    "Writing to a big file at once using `JappendWriter` with infinite entry buffer",
     createBigJsonFileUsingJappendWithInfiniteBuffer,
   );
 }

@@ -1,4 +1,4 @@
-import { Readable, type ReadableOptions } from 'stream';
+import { Readable, type ReadableOptions } from "stream";
 
 export class FakeReadableStream extends Readable {
   constructor(options?: ReadableOptions) {
@@ -7,7 +7,7 @@ export class FakeReadableStream extends Readable {
 
   override _read(_size: number): void {}
 
-  readMore(data: unknown = 'test') {
+  readMore(data: unknown = "test") {
     setImmediate(() => {
       this.push(data);
     });
@@ -21,7 +21,7 @@ export class FakeReadableStream extends Readable {
 
   finishWithError(error: Error) {
     setImmediate(() => {
-      this.emit('error', error);
+      this.emit("error", error);
     });
   }
 }

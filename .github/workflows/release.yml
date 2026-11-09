@@ -7,7 +7,7 @@ on:
       github-ref:
         required: true
         type: string
-        default: 'main'
+        default: "main"
         description: Ref to build
       version:
         required: true

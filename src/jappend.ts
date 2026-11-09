@@ -1,6 +1,6 @@
-import type { Mode, PathLike } from 'fs';
+import type { Mode, PathLike } from "fs";
 
-import { JappendWriter, type MinimalFileHandle, type WriterOptions } from './JappendWriter';
+import { JappendWriter, type MinimalFileHandle, type WriterOptions } from "./JappendWriter";
 
 /**
  * Options for appending data to a JSON file.

@@ -1,13 +1,13 @@
-import type { BigIntStats, StatOptions, Stats } from 'fs';
-import type { FileReadOptions, FileReadResult } from 'fs/promises';
+import type { BigIntStats, StatOptions, Stats } from "fs";
+import type { FileReadOptions, FileReadResult } from "fs/promises";
 
-import type { MinimalFileHandle } from '../src/JappendWriter';
+import type { MinimalFileHandle } from "../src/JappendWriter";
 
 export class InMemoryFileHandle implements MinimalFileHandle {
   #content: string;
 
   public constructor({ initialContent }: { initialContent?: string } = {}) {
-    this.#content = initialContent ?? '';
+    this.#content = initialContent ?? "";
   }
 
   public get content() {
@@ -39,17 +39,23 @@ export class InMemoryFileHandle implements MinimalFileHandle {
     }
 
     if (length === undefined || !Number.isInteger(length)) {
-      throw new Error(`${InMemoryFileHandle.name} requires integer length to be specified for read operations`);
+      throw new Error(
+        `${InMemoryFileHandle.name} requires integer length to be specified for read operations`,
+      );
     }
 
-    const offset = typeof offsetOrOptions === 'number' ? offsetOrOptions : undefined;
+    const offset = typeof offsetOrOptions === "number" ? offsetOrOptions : undefined;
 
     if (offset === undefined || !Number.isInteger(offset)) {
-      throw new Error(`${InMemoryFileHandle.name} requires integer offset to be specified for read operations`);
+      throw new Error(
+        `${InMemoryFileHandle.name} requires integer offset to be specified for read operations`,
+      );
     }
 
     if (position === undefined || !Number.isInteger(position)) {
-      throw new Error(`${InMemoryFileHandle.name} requires integer position to be specified for read operations`);
+      throw new Error(
+        `${InMemoryFileHandle.name} requires integer position to be specified for read operations`,
+      );
     }
 
     const data = this.#content.slice(position, position + length);
@@ -63,21 +69,26 @@ export class InMemoryFileHandle implements MinimalFileHandle {
 
   write<TBuffer extends Uint8Array>(
     bufferOrData: TBuffer | string,
-    offsetOrOptionsOrPosition?: number | null | { offset?: number; length?: number; position?: number },
+    offsetOrOptionsOrPosition?:
+      | number
+      | null
+      | { offset?: number; length?: number; position?: number },
   ): Promise<{
     bytesWritten: number;
     buffer: string;
   }> {
     const data = bufferOrData;
 
-    if (typeof data !== 'string') {
+    if (typeof data !== "string") {
       throw new Error(`${InMemoryFileHandle.name} only supports string for write operations`);
     }
 
     let position = offsetOrOptionsOrPosition;
 
-    if (position !== undefined && (typeof position !== 'number' || !Number.isInteger(position))) {
-      throw new Error(`${InMemoryFileHandle.name} requires integer position to be specified for write operations`);
+    if (position !== undefined && (typeof position !== "number" || !Number.isInteger(position))) {
+      throw new Error(
+        `${InMemoryFileHandle.name} requires integer position to be specified for write operations`,
+      );
     }
 
     if (position === undefined) {
@@ -88,7 +99,8 @@ export class InMemoryFileHandle implements MinimalFileHandle {
       throw new Error(`${InMemoryFileHandle.name} position out of bounds`);
     }
 
-    this.#content = this.#content.slice(0, position) + data + this.#content.slice(position + data.length);
+    this.#content =
+      this.#content.slice(0, position) + data + this.#content.slice(position + data.length);
 
     return Promise.resolve({
       bytesWritten: data.length,

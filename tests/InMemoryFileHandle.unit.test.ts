@@ -1,6 +1,6 @@
-import { expect, test } from 'vitest';
+import { expect, test } from "vitest";
 
-import { InMemoryFileHandle } from './InMemoryFileHandle';
+import { InMemoryFileHandle } from "./InMemoryFileHandle";
 
 test(`reads data at the end`, async () => {
   const sample = `abc\ndef\nghi`;
