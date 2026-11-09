@@ -1,55 +1,57 @@
-import { createId } from '@paralleldrive/cuid2';
-import fs from 'fs/promises';
-import path from 'path';
-import { type TransformCallback, Writable } from 'stream';
-import { afterAll, expect, test } from 'vitest';
+import { createId } from "@paralleldrive/cuid2";
+import fs from "fs/promises";
+import path from "path";
+import { type TransformCallback, Writable } from "stream";
+import { afterAll, expect, test } from "vitest";
 
-import { jappend, newJappendWriter } from '../src/jappend';
-import type { JappendWriter } from '../src/JappendWriter';
-import { FakeReadableStream } from './FakeReadableStream';
+import { jappend, newJappendWriter } from "../src/jappend";
+import type { JappendWriter } from "../src/JappendWriter";
+import { FakeReadableStream } from "./FakeReadableStream";
 
 afterAll(async () => {
   await removeAllTestJsonFiles();
 });
 
-test('appends an entry to a json file', async () => {
+test("appends an entry to a json file", async () => {
   const testJsonFilePath = await createTestJsonFileWithContent([]);
 
-  await jappend(testJsonFilePath, { newKey: 'newValue' });
+  await jappend(testJsonFilePath, { newKey: "newValue" });
 
-  await verifyFileContent(testJsonFilePath, [{ newKey: 'newValue' }]);
+  await verifyFileContent(testJsonFilePath, [{ newKey: "newValue" }]);
 });
 
-test('appends multiple entries', async () => {
-  const testJsonFilePath = await createTestJsonFileWithContent([{ existingKey: 'existingValue' }]);
+test("appends multiple entries", async () => {
+  const testJsonFilePath = await createTestJsonFileWithContent([{ existingKey: "existingValue" }]);
 
-  await jappend(testJsonFilePath, { newKey1: 'newValue1' });
-  await jappend(testJsonFilePath, ['Hello', 'World']);
+  await jappend(testJsonFilePath, { newKey1: "newValue1" });
+  await jappend(testJsonFilePath, ["Hello", "World"]);
 
   await verifyFileContent(testJsonFilePath, [
-    { existingKey: 'existingValue' },
-    { newKey1: 'newValue1' },
-    ['Hello', 'World'],
+    { existingKey: "existingValue" },
+    { newKey1: "newValue1" },
+    ["Hello", "World"],
   ]);
 });
 
-test('creates a new file if it does not exist', async () => {
+test("creates a new file if it does not exist", async () => {
   const testJsonFilePath = createTestJsonFilePath();
 
-  await jappend(testJsonFilePath, { newKey: 'newValue' });
+  await jappend(testJsonFilePath, { newKey: "newValue" });
 
-  await verifyFileContent(testJsonFilePath, [{ newKey: 'newValue' }]);
+  await verifyFileContent(testJsonFilePath, [{ newKey: "newValue" }]);
 });
 
-test('fails if file does not exist and `initArray` is `false`', async () => {
+test("fails if file does not exist and `initArray` is `false`", async () => {
   const testJsonFilePath = createTestJsonFilePath();
 
-  await expect(jappend(testJsonFilePath, { newKey: 'newValue' }, { initArray: false })).rejects.toThrow(
-    expect.objectContaining({ message: expect.stringContaining('no such file or directory') }),
+  await expect(
+    jappend(testJsonFilePath, { newKey: "newValue" }, { initArray: false }),
+  ).rejects.toThrow(
+    expect.objectContaining({ message: expect.stringContaining("no such file or directory") }),
   );
 });
 
-test('streams data to a file', async () => {
+test("streams data to a file", async () => {
   const stream = new FakeReadableStream({
     objectMode: true,
   });
@@ -62,7 +64,11 @@ test('streams data to a file', async () => {
       this.writer = writer;
     }
 
-    override _write(entry: { id: string; value: string }, encoding: BufferEncoding, done: TransformCallback) {
+    override _write(
+      entry: { id: string; value: string },
+      encoding: BufferEncoding,
+      done: TransformCallback,
+    ) {
       this.writer
         .append(entry)
         .then(() => done())
@@ -77,11 +83,11 @@ test('streams data to a file', async () => {
 
   const deferred = createDeferred();
   const writeStream = new WriteStream(jappendWriter);
-  stream.pipe(writeStream).on('finish', async () => {
+  stream.pipe(writeStream).on("finish", async () => {
     try {
       await jappendWriter.flush({ shutdown: true });
     } catch (error) {
-      console.error('Failed to flush analytics data:', error);
+      console.error("Failed to flush analytics data:", error);
     }
 
     deferred.resolve();
@@ -113,13 +119,13 @@ async function createTestJsonFileWithContent(content: unknown) {
 async function removeAllTestJsonFiles(): Promise<void> {
   const fileNames = await fs.readdir(__dirname);
   const testJsonFilePaths = fileNames
-    .filter((fileName) => fileName.startsWith('test-file-') && fileName.endsWith('.json'))
+    .filter((fileName) => fileName.startsWith("test-file-") && fileName.endsWith(".json"))
     .map((fileName) => path.join(__dirname, fileName));
   await Promise.all(testJsonFilePaths.map((file) => fs.unlink(file)));
 }
 
 async function verifyFileContent(fileName: string, expectedContent: unknown): Promise<void> {
-  const content = await fs.readFile(fileName, 'utf8');
+  const content = await fs.readFile(fileName, "utf8");
   expect(JSON.parse(content)).toEqual(expectedContent);
 }
 
@@ -137,7 +143,7 @@ function createDeferred<T = void>(): {
   });
 
   if (!resolve || !reject) {
-    throw new Error('Deferred promise must have both resolve and reject functions defined.');
+    throw new Error("Deferred promise must have both resolve and reject functions defined.");
   }
 
   return { promise, resolve, reject };

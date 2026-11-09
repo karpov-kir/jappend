@@ -7,19 +7,19 @@
     "file",
     "stream"
   ],
+  "license": "MIT",
+  "author": "Kirill Karpov",
   "repository": {
     "type": "git",
     "url": "https://github.com/karpov-kir/jappend.git"
   },
-  "license": "MIT",
-  "author": "Kirill Karpov",
-  "type": "module",
-  "main": "dist/jappend.js",
-  "types": "dist/jappend.d.ts",
   "files": [
     "dist/**/*.js",
     "dist/**/*.d.ts"
   ],
+  "type": "module",
+  "main": "dist/jappend.js",
+  "types": "dist/jappend.d.ts",
   "scripts": {
     "benchmark": "bun ./benchmark.ts all",
     "build": "bun run clean && bun run build.ts",

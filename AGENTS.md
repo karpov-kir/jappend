@@ -7,11 +7,11 @@ loading the whole file into memory. Its API and usage: [README.md](README.md).
 
 Everything runs through mise: it installs the pinned Node and Bun. `mise tasks` lists the tasks.
 
-| Command | Does |
-| --- | --- |
-| `mise run setup` | installs every dependency; run it in every new checkout |
-| `mise run check` | lint (oxlint, oxfmt and `tsc`), build and every test level; green before a commit |
-| `mise run check:ci` | `check` with coverage and its 80% floor, and the SonarQube reports; CI runs it |
+| Command             | Does                                                                              |
+| ------------------- | --------------------------------------------------------------------------------- |
+| `mise run setup`    | installs every dependency; run it in every new checkout                           |
+| `mise run check`    | lint (oxlint, oxfmt and `tsc`), build and every test level; green before a commit |
+| `mise run check:ci` | `check` with coverage and its 80% floor, and the SonarQube reports; CI runs it    |
 
 ## Rules
 
