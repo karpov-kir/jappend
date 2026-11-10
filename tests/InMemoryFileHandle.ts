@@ -1,7 +1,7 @@
 import type { BigIntStats, StatOptions, Stats } from "node:fs";
 import type { FileReadOptions, FileReadResult } from "node:fs/promises";
 
-import type { MinimalFileHandle } from "../src/JappendWriter";
+import type { MinimalFileHandle } from "../src/JappendWriter.js";
 
 /**
  * Keeps a file's content in memory as bytes, as a real file does, and stands in for a `FileHandle`.

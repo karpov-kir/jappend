@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 
-import { jappend, newJappendWriter } from "./src/jappend";
+import { jappend, newJappendWriter } from "./src/jappend.js";
 
 const bigJsonFilePath = path.join(__dirname, "bigJsonFile.json");
 const initialEntryCount = 200000;

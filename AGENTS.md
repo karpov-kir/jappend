@@ -6,16 +6,17 @@ For AI agents working in this repository. `jappend` is an npm library that appen
 
 Everything runs through mise: it installs the pinned Node and Bun. `mise tasks` lists the tasks.
 
-| Command             | Does                                                                              |
-| ------------------- | --------------------------------------------------------------------------------- |
-| `mise run setup`    | installs every dependency; run it in every new checkout                           |
-| `mise run check`    | lint (oxlint, oxfmt and `tsc`), build and every test level; green before a commit |
-| `mise run check:ci` | `check` with coverage and its 80% floor, and the SonarQube reports; CI runs it    |
+| Command             | Does                                                                                                                |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `mise run setup`    | installs every dependency; run it in every new checkout                                                             |
+| `mise run check`    | lint (oxlint, oxfmt and `tsc`), build, every test level and the packed package in plain Node; green before a commit |
+| `mise run check:ci` | `check` with coverage and its 80% floor, and the SonarQube reports; CI runs it                                      |
 
 ## Rules
 
 - Name a unit test `*.unit.test.ts` and put it beside the code it covers. Fakes such as `InMemoryFileHandle` and `FakeReadableStream` live in `tests/`. The integration test is `tests/jappend.integ.test.ts`.
 - `tests/InMemoryFileHandle.ts` ships in the package as `dist/tests/InMemoryFileHandle.js` for users to test their own code. Keep its import path stable.
+- Write each relative import with its `.js` file name, as Node needs for an ES module. `tsc` refuses one without it, and `mise run test:package` imports the packed package in plain Node.
 - Record every user-facing change under `## [Unreleased]` in `CHANGELOG.md`. Leave the version header to the release.
 
 ## Release
