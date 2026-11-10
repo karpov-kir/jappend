@@ -7,12 +7,12 @@ description = "Install every dependency"
 run = "bun install --frozen-lockfile"
 
 [tasks.check]
-description = "The gate before a commit: every linter, the build and every test"
-depends = ["lint", "build", "test"]
+description = "The gate before a commit: every linter, the build, every test and the packed package"
+depends = ["lint", "test", "test:package"]
 
 [tasks."check:ci"]
 description = "check with coverage and the SonarQube reports, as CI runs it"
-depends = ["lint", "build", "test:ci"]
+depends = ["lint", "test:ci", "test:package"]
 
 [tasks.lint]
 run = "bun run lint"
@@ -25,3 +25,33 @@ run = "bun run test"
 
 [tasks."test:ci"]
 run = "bun run test:ci"
+
+# Node loads an ES module only by its full file name, which a bundler or Bun would fill in for it.
+[tasks."test:package"]
+description = "Pack the package, install it in an empty folder and import it with plain Node, as a user does"
+depends = ["build"]
+run = """
+#!/usr/bin/env bash
+set -euo pipefail
+dir=$(mktemp -d)
+trap 'rm -rf "$dir"' EXIT
+npm pack --silent --pack-destination "$dir" >/dev/null
+mkdir -p "$dir/node_modules/jappend"
+tar -xzf "$dir"/jappend-*.tgz -C "$dir/node_modules/jappend" --strip-components 1
+cd "$dir"
+node --input-type=module -e '
+  import { readFile } from "node:fs/promises";
+  import { jappend, newJappendWriter } from "jappend";
+  import { InMemoryFileHandle } from "jappend/dist/tests/InMemoryFileHandle.js";
+
+  await jappend("list.json", { a: 1 });
+  await jappend("list.json", "ä");
+  const handle = new InMemoryFileHandle();
+  await newJappendWriter("memory.json", { fileOpen: async () => handle }).append(2);
+  const written = [JSON.parse(await readFile("list.json", "utf8")), JSON.parse(handle.content)];
+  if (JSON.stringify(written) !== JSON.stringify([[{ a: 1 }, "ä"], [2]])) {
+    throw new Error(`the packed package wrote ${JSON.stringify(written)}`);
+  }
+  console.log("The packed package loads and appends in plain Node");
+'
+"""

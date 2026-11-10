@@ -1,8 +1,8 @@
 import { constants } from "node:fs";
 import { describe, expect, test, vi } from "vitest";
 
-import { InMemoryFileHandle } from "../tests/InMemoryFileHandle";
-import { newJappendWriter } from "./jappend";
+import { InMemoryFileHandle } from "../tests/InMemoryFileHandle.js";
+import { newJappendWriter } from "./jappend.js";
 
 describe("Entry buffering", () => {
   test(`buffers entries and flushes them to the file when the buffer size is reached`, async () => {
@@ -386,6 +386,32 @@ describe("Flushing", () => {
     expect(inMemoryFileHandle.content).toBe(
       JSON.stringify([{ test: [1] }, { test: [2] }], null, 2),
     );
+  });
+
+  test.each([
+    ["before the bracket, pretty", "[\n  1" + " ".repeat(100) + "\n]", true],
+    ["after the bracket, pretty", "[\n  1\n]" + " \n".repeat(60), true],
+    ["before the bracket, flat", "[1" + " ".repeat(100) + "]", false],
+    ["after the bracket, flat", "[1]" + " ".repeat(100), false],
+  ])("appends to a file with any amount of whitespace %s", async (_, initialContent, pretty) => {
+    const inMemoryFileHandle = new InMemoryFileHandle({ initialContent });
+    const jappendWriter = newJappendWriter("/file", {
+      fileOpen: async () => inMemoryFileHandle,
+      pretty,
+    });
+
+    await jappendWriter.append(2);
+    await jappendWriter.append(3);
+
+    expect(JSON.parse(inMemoryFileHandle.content)).toEqual([1, 2, 3]);
+  });
+
+  test("refuses a file that does not end in the array's closing bracket", async () => {
+    const inMemoryFileHandle = new InMemoryFileHandle({ initialContent: "[1]x" });
+    const jappendWriter = newJappendWriter("/file", { fileOpen: async () => inMemoryFileHandle });
+
+    await expect(jappendWriter.append(2)).rejects.toThrow("does not contain a valid JSON array");
+    expect(inMemoryFileHandle.content).toBe("[1]x");
   });
 
   test("data is not lost if an error occurs during flushing", async () => {

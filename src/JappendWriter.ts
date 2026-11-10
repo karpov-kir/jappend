@@ -2,7 +2,7 @@ import { constants, type Mode, type PathLike } from "node:fs";
 import type { FileHandle } from "node:fs/promises";
 import fs from "node:fs/promises";
 
-import { removeFirstAndLastBrackets } from "./utils";
+import { removeFirstAndLastBrackets } from "./utils.js";
 
 /** Lists the `FileHandle` methods the writer calls. A test can pass an `InMemoryFileHandle`. */
 export type MinimalFileHandle = Pick<FileHandle, "read" | "write" | "close" | "stat">;
@@ -104,41 +104,9 @@ export class JappendWriter {
     }
   }
 
-  /**
-   * Returns the text that closes the array with the entries and the tail offset to write it at:
-   * after the last value when pretty, at the closing bracket otherwise. The search runs on bytes,
-   * since a byte of `]` or JSON whitespace never occurs inside a multi-byte UTF-8 character.
-   */
-  private buildInsertion(dataToWrite: unknown[], tail: Buffer, lastBracket: number) {
-    const jsonString = removeFirstAndLastBrackets(
-      JSON.stringify(dataToWrite, null, this.options.indent),
-    );
-
-    let valueEnd = lastBracket;
-    while (valueEnd > 0 && isJsonWhitespace(tail[valueEnd - 1])) {
-      valueEnd--;
-    }
-
-    const shouldInsertComma = valueEnd > 0 && tail[valueEnd - 1] !== OPENING_BRACKET;
-    const maybeNewLine = this.options.pretty ? "\n" : "";
-    const maybeIndentation = this.options.pretty ? " ".repeat(this.options.indent) : "";
-
-    return {
-      insertion: `${shouldInsertComma ? "," : ""}${maybeNewLine}${maybeIndentation}${jsonString}${maybeNewLine}]`,
-      tailPosition: this.options.pretty ? valueEnd : lastBracket,
-    };
-  }
-
-  /** Reads the last 50 bytes of the file, which hold the closing bracket the writer looks for. */
-  private async readFileTail(fileHandle: MinimalFileHandle) {
-    const { size } = await fileHandle.stat();
-    const length = Math.min(size, 50);
-    const readPosition = size - length;
-    const tail = Buffer.alloc(length);
-
-    await fileHandle.read(tail, 0, length, readPosition);
-
-    return { tail, readPosition, size };
+  /** Returns the entries as array items, without the brackets, in the writer's format. */
+  private formatEntries(dataToWrite: unknown[]) {
+    return removeFirstAndLastBrackets(JSON.stringify(dataToWrite, null, this.options.indent));
   }
 
   /**
@@ -187,23 +155,25 @@ export class JappendWriter {
    * leaves the array as it was.
    */
   private async writeEntries(fileHandle: MinimalFileHandle, dataToWrite: unknown[]) {
-    const { tail, readPosition, size } = await this.readFileTail(fileHandle);
+    const { size } = await fileHandle.stat();
+    const arrayEnd = await findArrayEnd(fileHandle, size);
 
-    if (tail.every(isJsonWhitespace) && this.options.initArray) {
+    if (!arrayEnd) {
+      if (!this.options.initArray) {
+        throw new Error(NOT_AN_ARRAY);
+      }
       await writeAll(fileHandle, JSON.stringify(dataToWrite, null, this.options.indent), size);
       return;
     }
 
-    const lastBracket = tail.lastIndexOf(CLOSING_BRACKET);
-
-    if (lastBracket === -1) {
-      throw new Error(
-        "The file does not contain a valid JSON array. Please ensure the file contains a valid JSON array before appending data.",
-      );
-    }
-
-    const { insertion, tailPosition } = this.buildInsertion(dataToWrite, tail, lastBracket);
-    const writePosition = readPosition + tailPosition;
+    const { closingBracket, valueEnd, lastValueByte } = arrayEnd;
+    const comma = lastValueByte === OPENING_BRACKET ? "" : ",";
+    const newLine = this.options.pretty ? "\n" : "";
+    const indentation = this.options.pretty ? " ".repeat(this.options.indent) : "";
+    const insertion = `${comma}${newLine}${indentation}${this.formatEntries(dataToWrite)}${newLine}]`;
+    // In pretty mode the writer starts a new line after the last value, so it writes over the
+    // whitespace before the bracket.
+    const writePosition = this.options.pretty ? valueEnd : closingBracket;
     const padding = " ".repeat(Math.max(0, size - writePosition - Buffer.byteLength(insertion)));
 
     await writeAll(fileHandle, insertion + padding, writePosition);
@@ -227,12 +197,61 @@ export class JappendWriter {
   }
 }
 
+const NOT_AN_ARRAY =
+  "The file does not contain a valid JSON array. Please ensure the file contains a valid JSON array before appending data.";
 const OPENING_BRACKET = 0x5b;
 const CLOSING_BRACKET = 0x5d;
 
 /** Tells whether `byte` is JSON whitespace: space, tab, line feed or carriage return. */
 function isJsonWhitespace(byte: number | undefined) {
   return byte === 0x20 || byte === 0x09 || byte === 0x0a || byte === 0x0d;
+}
+
+/**
+ * Returns the byte positions of the closing bracket and of the end of the value before it, and that
+ * value's last byte, or nothing for a file of whitespace alone. Throws when the file does not end
+ * in `]` after a value or `[`. Reads from the end in chunks, so any amount of whitespace works.
+ */
+async function findArrayEnd(fileHandle: MinimalFileHandle, size: number) {
+  let closingBracket: number | undefined;
+
+  for await (const { position, byte } of bytesFromTheEnd(fileHandle, size)) {
+    if (isJsonWhitespace(byte)) {
+      continue;
+    }
+    if (closingBracket === undefined) {
+      if (byte !== CLOSING_BRACKET) {
+        throw new Error(NOT_AN_ARRAY);
+      }
+      closingBracket = position;
+      continue;
+    }
+    return { closingBracket, valueEnd: position + 1, lastValueByte: byte };
+  }
+
+  if (closingBracket !== undefined) {
+    throw new Error(NOT_AN_ARRAY);
+  }
+  return undefined;
+}
+
+/**
+ * Yields the bytes before `end` from the last to the first, with their positions. A byte of `]` or
+ * JSON whitespace never occurs inside a multi-byte UTF-8 character, so the search decodes nothing.
+ */
+async function* bytesFromTheEnd(fileHandle: MinimalFileHandle, end: number) {
+  const chunk = Buffer.alloc(4096);
+
+  for (let chunkEnd = end; chunkEnd > 0;) {
+    const start = Math.max(0, chunkEnd - chunk.length);
+    const length = chunkEnd - start;
+
+    await fileHandle.read(chunk, 0, length, start);
+    for (let i = length - 1; i >= 0; i--) {
+      yield { position: start + i, byte: chunk[i] };
+    }
+    chunkEnd = start;
+  }
 }
 
 /**

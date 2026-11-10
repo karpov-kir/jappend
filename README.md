@@ -226,7 +226,7 @@ process.on("SIGTERM", shutdown);
 
 ```typescript
 import { newJappendWriter } from "jappend";
-import { JappendWriter } from "jappend/dist/JappendWriter";
+import type { JappendWriter } from "jappend/dist/JappendWriter.js";
 import { type TransformCallback, Writable } from "stream";
 
 class AnalyticsWriterStream extends Writable {
@@ -299,7 +299,7 @@ The package ships an `InMemoryFileHandle` class for tests. It implements `Minima
 
 ```typescript
 import { jappend } from "jappend";
-import { InMemoryFileHandle } from "jappend/dist/tests/InMemoryFileHandle";
+import { InMemoryFileHandle } from "jappend/dist/tests/InMemoryFileHandle.js";
 
 const inMemoryFileHandle = new InMemoryFileHandle({
   initialContent: JSON.stringify([{ existing: "data" }], null, 2),

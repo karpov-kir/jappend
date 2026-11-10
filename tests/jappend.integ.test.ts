@@ -4,9 +4,9 @@ import path from "node:path";
 import { type TransformCallback, Writable } from "node:stream";
 import { afterAll, expect, test } from "vitest";
 
-import { jappend, newJappendWriter } from "../src/jappend";
-import type { JappendWriter } from "../src/JappendWriter";
-import { FakeReadableStream } from "./FakeReadableStream";
+import { jappend, newJappendWriter } from "../src/jappend.js";
+import type { JappendWriter } from "../src/JappendWriter.js";
+import { FakeReadableStream } from "./FakeReadableStream.js";
 
 afterAll(async () => {
   await removeAllTestJsonFiles();

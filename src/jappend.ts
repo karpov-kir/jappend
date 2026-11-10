@@ -1,6 +1,6 @@
 import type { Mode, PathLike } from "node:fs";
 
-import { JappendWriter, type MinimalFileHandle, type WriterOptions } from "./JappendWriter";
+import { JappendWriter, type MinimalFileHandle, type WriterOptions } from "./JappendWriter.js";
 
 export interface JappendOptions {
   /** Formats the JSON with newlines and `indent` spaces. Defaults to `true`. */
