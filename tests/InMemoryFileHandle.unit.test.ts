@@ -90,3 +90,20 @@ test(`writes data at the beginning`, async () => {
   expect(bytesWritten).toBe(newData.length);
   expect(buffer).toBe(expected);
 });
+
+test(`reads no bytes past the end`, async () => {
+  const inMemoryFileHandle = new InMemoryFileHandle({ initialContent: `abc` });
+  const buffer = Buffer.alloc(3);
+
+  const { bytesRead } = await inMemoryFileHandle.read(buffer, 0, 3, 10);
+
+  expect(bytesRead).toBe(0);
+});
+
+test(`counts bytes, not characters`, async () => {
+  const inMemoryFileHandle = new InMemoryFileHandle({ initialContent: `ä` });
+
+  const { size } = await inMemoryFileHandle.stat();
+
+  expect(size).toBe(2);
+});

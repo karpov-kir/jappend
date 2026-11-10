@@ -1,4 +1,4 @@
-import { Readable, type ReadableOptions } from "stream";
+import { Readable, type ReadableOptions } from "node:stream";
 
 export class FakeReadableStream extends Readable {
   constructor(options?: ReadableOptions) {

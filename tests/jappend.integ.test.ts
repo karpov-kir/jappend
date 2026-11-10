@@ -1,7 +1,7 @@
 import { createId } from "@paralleldrive/cuid2";
-import fs from "fs/promises";
-import path from "path";
-import { type TransformCallback, Writable } from "stream";
+import fs from "node:fs/promises";
+import path from "node:path";
+import { type TransformCallback, Writable } from "node:stream";
 import { afterAll, expect, test } from "vitest";
 
 import { jappend, newJappendWriter } from "../src/jappend";
@@ -31,6 +31,16 @@ test("appends multiple entries", async () => {
     { newKey1: "newValue1" },
     ["Hello", "World"],
   ]);
+});
+
+test("appends after entries with non-ASCII text", async () => {
+  const testJsonFilePath = await createTestJsonFileWithContent([]);
+
+  await jappend(testJsonFilePath, "ääää");
+  await jappend(testJsonFilePath, { emoji: "😀" });
+  await jappend(testJsonFilePath, 2, { pretty: false });
+
+  await verifyFileContent(testJsonFilePath, ["ääää", { emoji: "😀" }, 2]);
 });
 
 test("creates a new file if it does not exist", async () => {

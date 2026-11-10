@@ -1,20 +1,22 @@
-import type { Mode, PathLike } from "fs";
-import type { FileHandle } from "fs/promises";
-import fs from "fs/promises";
+import { constants, type Mode, type PathLike } from "node:fs";
+import type { FileHandle } from "node:fs/promises";
+import fs from "node:fs/promises";
 
-import { countNewLinesAndSpacesBeforeLastBracket, removeFirstAndLastBrackets } from "./utils";
+import { removeFirstAndLastBrackets } from "./utils";
 
 /** Lists the `FileHandle` methods the writer calls. A test can pass an `InMemoryFileHandle`. */
-export type MinimalFileHandle = Pick<FileHandle, "read" | "write" | "close" | "truncate" | "stat">;
+export type MinimalFileHandle = Pick<FileHandle, "read" | "write" | "close" | "stat">;
 
 export interface WriterOptions {
   /**
    * Sets the buffered entry count that makes `append` flush: a positive integer or `Infinity`.
-   * Defaults to `1`. A running flush also writes the entries appended before it closes the file. An
-   * entry appended while it closes the file waits for the next flush.
+   * Defaults to `1`. A running flush also writes the entries appended while it runs.
    */
   bufferFlushThreshold?: number;
-  /** Opens the file. Defaults to `fs.open`. A test can return an `InMemoryFileHandle` instead. */
+  /**
+   * Opens the file. Defaults to `fs.open`. A test can return an `InMemoryFileHandle` instead. Must
+   * not open the file in append mode: the writer writes at positions, which Linux ignores there.
+   */
   fileOpen?: (path: PathLike, flags?: string | number, mode?: Mode) => Promise<MinimalFileHandle>;
   /** Formats the JSON with newlines and `indent` spaces. Defaults to `true`. */
   pretty?: boolean;
@@ -102,111 +104,109 @@ export class JappendWriter {
     }
   }
 
-  private buildInsertion({
-    dataToWrite,
-    lastBracketIndex,
-    readPosition,
-    fileTail,
-    trimmedFileTail,
-  }: {
-    dataToWrite: unknown[];
-    lastBracketIndex: number;
-    readPosition: number;
-    fileTail: string;
-    trimmedFileTail: string;
-  }) {
+  /**
+   * Returns the text that closes the array with the entries and the tail offset to write it at:
+   * after the last value when pretty, at the closing bracket otherwise. The search runs on bytes,
+   * since a byte of `]` or JSON whitespace never occurs inside a multi-byte UTF-8 character.
+   */
+  private buildInsertion(dataToWrite: unknown[], tail: Buffer, lastBracket: number) {
     const jsonString = removeFirstAndLastBrackets(
       JSON.stringify(dataToWrite, null, this.options.indent),
     );
 
-    const shouldInsertComma = /[^\s[]\s*]$/.test(trimmedFileTail);
+    let valueEnd = lastBracket;
+    while (valueEnd > 0 && isJsonWhitespace(tail[valueEnd - 1])) {
+      valueEnd--;
+    }
+
+    const shouldInsertComma = valueEnd > 0 && tail[valueEnd - 1] !== OPENING_BRACKET;
     const maybeNewLine = this.options.pretty ? "\n" : "";
     const maybeIndentation = this.options.pretty ? " ".repeat(this.options.indent) : "";
 
-    const insertion = `${shouldInsertComma ? "," : ""}${maybeNewLine}${maybeIndentation}${jsonString}${maybeNewLine}]`;
-
-    const truncatePosition =
-      readPosition +
-      lastBracketIndex -
-      countNewLinesAndSpacesBeforeLastBracket({
-        fileTail,
-        lastBracketIndex,
-        pretty: this.options.pretty,
-      });
-
     return {
-      insertion,
-      truncatePosition,
+      insertion: `${shouldInsertComma ? "," : ""}${maybeNewLine}${maybeIndentation}${jsonString}${maybeNewLine}]`,
+      tailPosition: this.options.pretty ? valueEnd : lastBracket,
     };
   }
 
+  /** Reads the last 50 bytes of the file, which hold the closing bracket the writer looks for. */
   private async readFileTail(fileHandle: MinimalFileHandle) {
-    const stats = await fileHandle.stat();
-    const bufferSize = Math.min(stats.size, 50);
-    const readPosition = stats.size - bufferSize;
+    const { size } = await fileHandle.stat();
+    const length = Math.min(size, 50);
+    const readPosition = size - length;
+    const tail = Buffer.alloc(length);
 
-    const buffer = Buffer.alloc(bufferSize);
+    await fileHandle.read(tail, 0, length, readPosition);
 
-    await fileHandle.read(buffer, 0, bufferSize, readPosition);
-
-    const fileTail = buffer.toString();
-    const lastBracketIndex = fileTail.lastIndexOf("]");
-    const trimmedFileTail = fileTail.trim();
-
-    return {
-      fileTail,
-      lastBracketIndex,
-      trimmedFileTail,
-      readPosition,
-    };
+    return { tail, readPosition, size };
   }
 
+  /**
+   * Writes the buffer until it stays empty, including entries appended while the file closes. Ends
+   * the flush in the step that sees the empty buffer, so a later `append` starts a new one.
+   */
   private async ensureAllIsFlushed() {
-    if (this.buffer.length === 0) {
-      return;
+    try {
+      while (this.buffer.length > 0) {
+        await this.writeBufferThroughOneHandle();
+      }
+    } finally {
+      this.flushPromise = undefined;
     }
+  }
 
+  /**
+   * Opens the file once, writes the buffer until it is empty and closes the file. On a failure,
+   * puts the entries of the failed write back at the front of the buffer.
+   */
+  private async writeBufferThroughOneHandle() {
+    // The writer opens the file read-write without append mode. On Linux an append-mode handle
+    // writes at the end and ignores the position.
+    const fileHandle = await this.options.fileOpen(
+      this.filePath,
+      this.options.initArray ? constants.O_RDWR | constants.O_CREAT : "r+",
+    );
     let dataToWrite: unknown[] = [];
-    let fileHandle: MinimalFileHandle | undefined;
+
     try {
       while (this.buffer.length > 0) {
         dataToWrite = this.buffer.splice(0, this.buffer.length);
-        fileHandle = await this.options.fileOpen(
-          this.filePath,
-          this.options.initArray ? "a+" : "r+",
-        );
-
-        const { fileTail, lastBracketIndex, trimmedFileTail, readPosition } =
-          await this.readFileTail(fileHandle);
-
-        if (trimmedFileTail === "" && this.options.initArray) {
-          await fileHandle.write(JSON.stringify(dataToWrite, null, this.options.indent));
-          continue;
-        }
-
-        if (lastBracketIndex === -1) {
-          throw new Error(
-            "The file does not contain a valid JSON array. Please ensure the file contains a valid JSON array before appending data.",
-          );
-        }
-
-        const { truncatePosition, insertion } = this.buildInsertion({
-          dataToWrite,
-          lastBracketIndex,
-          readPosition,
-          fileTail,
-          trimmedFileTail,
-        });
-
-        await fileHandle.truncate(truncatePosition);
-        await fileHandle.write(insertion, truncatePosition);
+        await this.writeEntries(fileHandle, dataToWrite);
       }
     } catch (error) {
       this.buffer.unshift(...dataToWrite);
       throw error;
     } finally {
-      await fileHandle?.close();
+      await fileHandle.close();
     }
+  }
+
+  /**
+   * Writes the entries over the closing bracket, padded with spaces to the length of the old tail,
+   * so nothing of the old tail is left to cut off. A write that fails without writing anything
+   * leaves the array as it was.
+   */
+  private async writeEntries(fileHandle: MinimalFileHandle, dataToWrite: unknown[]) {
+    const { tail, readPosition, size } = await this.readFileTail(fileHandle);
+
+    if (tail.every(isJsonWhitespace) && this.options.initArray) {
+      await writeAll(fileHandle, JSON.stringify(dataToWrite, null, this.options.indent), size);
+      return;
+    }
+
+    const lastBracket = tail.lastIndexOf(CLOSING_BRACKET);
+
+    if (lastBracket === -1) {
+      throw new Error(
+        "The file does not contain a valid JSON array. Please ensure the file contains a valid JSON array before appending data.",
+      );
+    }
+
+    const { insertion, tailPosition } = this.buildInsertion(dataToWrite, tail, lastBracket);
+    const writePosition = readPosition + tailPosition;
+    const padding = " ".repeat(Math.max(0, size - writePosition - Buffer.byteLength(insertion)));
+
+    await writeAll(fileHandle, insertion + padding, writePosition);
   }
 
   /**
@@ -214,28 +214,48 @@ export class JappendWriter {
    * With `shutdown`, later `append` calls drop their data. A failed flush keeps its entries
    * buffered.
    */
-  async flush({ shutdown }: { shutdown?: boolean } = {}) {
-    if (this.flushPromise) {
-      if (shutdown) {
-        this.isShutdown = true;
-      }
-      return this.flushPromise;
-    }
-
+  async flush({ shutdown }: { shutdown?: boolean } = {}): Promise<void> {
     if (shutdown) {
       this.isShutdown = true;
     }
 
-    this.flushPromise = this.ensureAllIsFlushed()
-      .then(() => {
-        this.flushPromise = undefined;
-      })
-      .catch((error) => {
-        this.flushPromise = undefined;
-        throw error;
-      });
+    if (!this.flushPromise && this.buffer.length > 0) {
+      this.flushPromise = this.ensureAllIsFlushed();
+    }
 
     return this.flushPromise;
+  }
+}
+
+const OPENING_BRACKET = 0x5b;
+const CLOSING_BRACKET = 0x5d;
+
+/** Tells whether `byte` is JSON whitespace: space, tab, line feed or carriage return. */
+function isJsonWhitespace(byte: number | undefined) {
+  return byte === 0x20 || byte === 0x09 || byte === 0x0a || byte === 0x0d;
+}
+
+/**
+ * Writes all of `text` at `position`. A file system can write fewer bytes than asked, as on a full
+ * disk.
+ */
+async function writeAll(fileHandle: MinimalFileHandle, text: string, position: number) {
+  const bytes = Buffer.from(text);
+  let written = 0;
+
+  while (written < bytes.length) {
+    const { bytesWritten } = await fileHandle.write(
+      bytes,
+      written,
+      bytes.length - written,
+      position + written,
+    );
+
+    if (bytesWritten === 0) {
+      throw new Error(`Wrote ${written} of ${bytes.length} bytes: the file system took no more`);
+    }
+
+    written += bytesWritten;
   }
 }
 

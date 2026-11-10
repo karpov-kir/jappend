@@ -125,7 +125,7 @@ Appends one entry to a JSON array file. Each call opens and closes the file.
 - `pretty` (boolean, default: `true`): format JSON with indentation for human readability
 - `indent` (number, default: `2`): number of spaces for indentation when `pretty` is `true`
 - `initArray` (boolean, default: `true`): create a missing file and start an empty file with the array. With `false`, an append to a missing or empty file fails.
-- `fileOpen` (function, default: `fs.open`): opens the file and returns a `MinimalFileHandle`, such as an `InMemoryFileHandle` in a test
+- `fileOpen` (function, default: `fs.open`): opens the file and returns a `MinimalFileHandle`, such as an `InMemoryFileHandle` in a test. With `initArray` it gets the flags `O_RDWR | O_CREAT`, otherwise `r+`. The writer writes at positions, so the handle must not be in append mode.
 
 ### `newJappendWriter(filePath, options?)`
 
@@ -138,11 +138,11 @@ Returns a `JappendWriter`, which buffers entries and writes them in batches. Thr
 
 #### `WriterOptions`
 
-- `bufferFlushThreshold` (positive integer or `Infinity`, default: `1`): the buffered entry count that makes `append` flush. A running flush also writes the entries appended before it closes the file. An entry appended while it closes the file waits for the next flush.
+- `bufferFlushThreshold` (positive integer or `Infinity`, default: `1`): the buffered entry count that makes `append` flush. A running flush also writes the entries appended while it runs.
 - `pretty` (boolean, default: `true`): format JSON with indentation for human readability
 - `indent` (number, default: `2`): number of spaces for indentation when `pretty` is `true`
 - `initArray` (boolean, default: `true`): create a missing file and start an empty file with the array. With `false`, a flush to a missing or empty file fails.
-- `fileOpen` (function, default: `fs.open`): opens the file and returns a `MinimalFileHandle`, such as an `InMemoryFileHandle` in a test
+- `fileOpen` (function, default: `fs.open`): opens the file and returns a `MinimalFileHandle`, such as an `InMemoryFileHandle` in a test. With `initArray` it gets the flags `O_RDWR | O_CREAT`, otherwise `r+`. The writer writes at positions, so the handle must not be in append mode.
 - `suppressThresholdFlushErrors` (boolean, default: `false`): with `true`, a flush that `append` starts on reaching the threshold logs its error to `logger` instead of rejecting (fire-and-forget mode). `flush` still rejects.
 - `logger` (object with an `error(message)` method, default: `console.error`): receives the errors that `suppressThresholdFlushErrors` keeps from `append`
 
@@ -154,7 +154,7 @@ Adds data to the buffer and flushes when the buffer reaches `bufferFlushThreshol
 
 #### `flush(options?: { shutdown?: boolean }): Promise<void>`
 
-Writes all buffered entries to the file. A call made while a flush runs returns that flush. With `shutdown: true` (default `false`), later `append` calls drop their data. A failed flush keeps its entries buffered, so the next flush retries them.
+Writes all buffered entries to the file. A call made while a flush runs returns that flush. With `shutdown: true` (default `false`), later `append` calls drop their data. A failed flush keeps its entries buffered, so the next flush retries them. The flush writes the entries over the closing bracket and never cuts the file, so a write that fails without writing anything leaves the array valid.
 
 ## 🎯 Use Cases
 
