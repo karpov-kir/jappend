@@ -17,8 +17,8 @@ Everything runs through mise: it installs the pinned Node and Bun. `mise tasks` 
 - Name a unit test `*.unit.test.ts` and put it beside the code it covers. Fakes such as `InMemoryFileHandle` and `FakeReadableStream` live in `tests/`. The integration test is `tests/jappend.integ.test.ts`.
 - `tests/InMemoryFileHandle.ts` ships in the package as `dist/tests/InMemoryFileHandle.js` for users to test their own code. Keep its import path stable.
 - Write each relative import with its `.js` file name, as Node needs for an ES module. `tsc` refuses one without it, and `mise run test:package` imports the packed package in plain Node.
-- Record every user-facing change under `## [Unreleased]` in `CHANGELOG.md`. Leave the version header to the release.
+- Record every user-facing change under `## [Unreleased]` in `CHANGELOG.md`. The release PR moves them under its version header.
 
 ## Release
 
-Release only when the owner asks. The Release workflow (`.github/workflows/release.yml`) runs from the Actions tab on a version the owner gives. It builds the package, publishes it to npm and pushes the version commit and tag. [release/README.md](release/README.md) has the steps for a stable and a beta release.
+Release only when the owner asks. A PR raises `version` in `package.json` and moves the `## [Unreleased]` entries under `## X.Y.Z - YYYY-MM-DD`. Once it merges, the Release workflow (`.github/workflows/release.yml`) checks, packs and publishes the package to npm through the shared [Release npm](https://github.com/kk-forge-engineering/gh-actions/blob/main/.github/workflows/release-npm.yml) workflow. The `production` environment's reviewer approves the publish, and the workflow then tags `vX.Y.Z` with a GitHub Release. npm trusts `release.yml` as the package's Trusted Publisher, so the workflow uses no npm token.
