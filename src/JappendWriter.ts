@@ -1,6 +1,6 @@
-import { constants, type Mode, type PathLike } from "fs";
-import type { FileHandle } from "fs/promises";
-import fs from "fs/promises";
+import { constants, type Mode, type PathLike } from "node:fs";
+import type { FileHandle } from "node:fs/promises";
+import fs from "node:fs/promises";
 
 import { removeFirstAndLastBrackets } from "./utils";
 

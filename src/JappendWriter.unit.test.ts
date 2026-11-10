@@ -1,4 +1,4 @@
-import { constants } from "fs";
+import { constants } from "node:fs";
 import { describe, expect, test, vi } from "vitest";
 
 import { InMemoryFileHandle } from "../tests/InMemoryFileHandle";
@@ -346,7 +346,7 @@ describe("Flushing", () => {
     await jappendWriter.append(2);
 
     expect(JSON.parse(inMemoryFileHandle.content)).toEqual([1, 2]);
-    expect(inMemoryFileHandle.content.length).toBe(initialContent.length);
+    expect(inMemoryFileHandle.content).toHaveLength(initialContent.length);
   });
 
   test("writes the bytes of entries with non-ASCII text", async () => {

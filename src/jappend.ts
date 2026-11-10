@@ -1,4 +1,4 @@
-import type { Mode, PathLike } from "fs";
+import type { Mode, PathLike } from "node:fs";
 
 import { JappendWriter, type MinimalFileHandle, type WriterOptions } from "./JappendWriter";
 

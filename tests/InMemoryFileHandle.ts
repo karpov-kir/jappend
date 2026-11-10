@@ -1,5 +1,5 @@
-import type { BigIntStats, StatOptions, Stats } from "fs";
-import type { FileReadOptions, FileReadResult } from "fs/promises";
+import type { BigIntStats, StatOptions, Stats } from "node:fs";
+import type { FileReadOptions, FileReadResult } from "node:fs/promises";
 
 import type { MinimalFileHandle } from "../src/JappendWriter";
 

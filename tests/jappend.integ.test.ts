@@ -1,7 +1,7 @@
 import { createId } from "@paralleldrive/cuid2";
-import fs from "fs/promises";
-import path from "path";
-import { type TransformCallback, Writable } from "stream";
+import fs from "node:fs/promises";
+import path from "node:path";
+import { type TransformCallback, Writable } from "node:stream";
 import { afterAll, expect, test } from "vitest";
 
 import { jappend, newJappendWriter } from "../src/jappend";

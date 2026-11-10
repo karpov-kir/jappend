@@ -1,6 +1,6 @@
 import { $ } from "bun";
-import { readdir, readFile, rename, rm, writeFile } from "fs/promises";
-import path from "path";
+import { readdir, readFile, rename, rm, writeFile } from "node:fs/promises";
+import path from "node:path";
 
 await build();
 await moveFiles();
