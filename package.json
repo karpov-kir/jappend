@@ -1,6 +1,6 @@
 {
   "name": "jappend",
-  "version": "1.2.0",
+  "version": "2.0.0",
   "description": "Efficiently append entries to JSON array files without loading the entire file into memory.",
   "keywords": [
     "JSON",
@@ -31,7 +31,6 @@
     "lint:format": "oxfmt --check",
     "lint:format:fix": "oxfmt",
     "lint:tsc": "tsc",
-    "release": "./release/release.sh",
     "test": "vitest run",
     "test:ci": "vitest run --coverage",
     "test:integration": "vitest run --config ./vitest.integ.config.ts",

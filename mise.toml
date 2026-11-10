@@ -26,6 +26,12 @@ run = "bun run test"
 [tasks."test:ci"]
 run = "bun run test:ci"
 
+# The Release workflow packs in a job apart from the checks. This install runs no dependency's scripts, so none of
+# them runs where the tarball is made.
+[tasks.pack]
+description = "Build the package and pack it into the repo root, as the Release workflow publishes it"
+run = ["bun install --frozen-lockfile --ignore-scripts", "bun run build", "npm pack"]
+
 # Node loads an ES module only by its full file name, which a bundler or Bun would fill in for it.
 [tasks."test:package"]
 description = "Pack the package, install it in an empty folder and import it with plain Node, as a user does"
