@@ -3,18 +3,17 @@
 A memory-efficient Node.js library for appending entries to large JSON array files without ever loading the entire file into memory.
 
 [![CI](https://github.com/karpov-kir/jappend/actions/workflows/ci.yml/badge.svg)](https://github.com/karpov-kir/jappend/actions/workflows/ci.yml)
-[![MIT License](https://img.shields.io/badge/license-MIT-brightgreen.svg)](LICENSE)
+[![MIT License](https://img.shields.io/badge/license-MIT-brightgreen.svg)](https://opensource.org/licenses/MIT)
 [![npm version](https://img.shields.io/npm/v/jappend)](https://www.npmjs.com/package/jappend)
 [![npm dm](https://img.shields.io/npm/dm/jappend.svg)](https://www.npmjs.com/package/jappend)
 [![npm dt](https://img.shields.io/npm/dt/jappend.svg)](https://www.npmjs.com/package/jappend)
 
 ## 🚀 Features
 
-- **Memory efficient**: Append to large JSON files without loading them entirely into memory
-- **Buffered writing**: Optional buffering for improved performance when writing multiple entries
-- **Pretty formatting**: Configurable JSON formatting with custom indentation
-- **Type safe**: Full TypeScript support with comprehensive type definitions
-- **Flexible**: Works with any JSON-serializable data
+- **Memory efficient**: appends to a large JSON file and reads only its end
+- **Buffered writing**: writes many entries in one batch
+- **Pretty formatting**: indented or compact JSON
+- **Typed**: ships TypeScript declarations
 
 ## 📦 Installation
 
@@ -29,14 +28,14 @@ npm install jappend
 ```typescript
 import { jappend } from "jappend";
 
-// Append a single object to a JSON array file
+// Append one entry to a JSON array file
 await jappend("data.json", { id: 1, name: "John" });
 await jappend("data.json", { id: 2, name: "Jane" });
 ```
 
 ### Buffered Writing (Recommended for Multiple Entries)
 
-For better performance when writing multiple entries, use the `JappendWriter` class with buffering:
+To write many entries, use a `JappendWriter`, which buffers them and writes them in batches:
 
 ```typescript
 import { newJappendWriter } from "jappend";
@@ -45,7 +44,6 @@ const jappendWriter = newJappendWriter("data.json", {
   bufferFlushThreshold: 1000, // Buffer up to 1000 entries before writing
 });
 
-// Add multiple entries
 for (let i = 0; i < 10100; i++) {
   await jappendWriter.append({ id: i, timestamp: Date.now() });
 }
@@ -56,7 +54,7 @@ await jappendWriter.flush({ shutdown: true });
 
 ### Fire-and-Forget Mode (Suppressing Automatic Buffer Flush Errors)
 
-For scenarios where you do not want to await every `append` call, you can enable fire-and-forget mode by setting `suppressThresholdFlushErrors: true`. This will suppress and log errors that occur during automatic buffer flushes (when the buffer threshold is reached). Note that errors will still be thrown if you explicitly call `flush`.
+To leave `append` calls unawaited, set `suppressThresholdFlushErrors: true`. A flush that `append` starts on reaching the threshold then logs its error to `logger` instead of rejecting, and keeps the entries buffered for the next flush. A `flush` call still rejects on error.
 
 ```typescript
 import { newJappendWriter } from "jappend";
@@ -66,13 +64,11 @@ const writer = newJappendWriter("data.json", {
   suppressThresholdFlushErrors: true, // Enable fire-and-forget
 });
 
-// Some event emitter that generates data relatively often
 eventEmitter.on("some-event", (data) => {
-  // Append data without awaiting
   writer.append({ data, timestamp: Date.now() });
 });
 
-// At the end, flush any remaining entries and handle errors
+// Flush the remaining entries and handle the error
 function shutdown() {
   writer
     .flush({ shutdown: true })
@@ -80,7 +76,7 @@ function shutdown() {
       process.exit(0);
     })
     .catch((error) => {
-      console.error("Failed to flush sensor data:", error);
+      console.error("Failed to flush data:", error);
       process.exit(1);
     });
 }
@@ -94,23 +90,21 @@ process.on("SIGTERM", shutdown);
 ```typescript
 import { jappend, newJappendWriter } from "jappend";
 
-// Basic function with options
 await jappend(
   "data.json",
   { test: "data" },
   {
     pretty: true, // Format with indentation (default: true)
     indent: 4, // Spaces for indentation (default: 2)
-    initArray: true, // Initialize empty file with [] (default: true)
+    initArray: true, // Create a missing file and start an empty one with an array (default: true)
   },
 );
 
-// JappendWriter with advanced options
 const jappendWriter = newJappendWriter("data.json", {
-  bufferFlushThreshold: 5000, // Buffer write threshold (default: 1)
-  pretty: false, // Compact JSON
-  initArray: true, // Initialize empty file with [] (default: true)
-  indent: 4, // Spaces for indentation (default: 2)
+  bufferFlushThreshold: 5000, // Entries that make append flush (default: 1)
+  pretty: false, // Compact JSON, indent is ignored (default: true)
+  initArray: true, // Create a missing file and start an empty one with an array (default: true)
+  suppressThresholdFlushErrors: false, // append rejects on a threshold flush error (default: false)
 });
 ```
 
@@ -118,7 +112,7 @@ const jappendWriter = newJappendWriter("data.json", {
 
 ### `jappend(filePath, data, options?)`
 
-Appends a single object to a JSON array file.
+Appends one entry to a JSON array file. Each call opens and closes the file.
 
 **Parameters:**
 
@@ -130,12 +124,12 @@ Appends a single object to a JSON array file.
 
 - `pretty` (boolean, default: `true`): format JSON with indentation for human readability
 - `indent` (number, default: `2`): number of spaces for indentation when `pretty` is `true`
-- `initArray` (boolean, default: `true`): automatically initialize empty file with `[]` array
-- `fileOpen` (function, optional): custom file opener for simplified testing (defaults to `fs.open`)
+- `initArray` (boolean, default: `true`): create a missing file and start an empty file with the array. With `false`, an append to a missing or empty file fails.
+- `fileOpen` (function, default: `fs.open`): opens the file and returns a `MinimalFileHandle`, such as an `InMemoryFileHandle` in a test
 
 ### `newJappendWriter(filePath, options?)`
 
-Creates a new `JappendWriter` instance for buffered operations.
+Returns a `JappendWriter`, which buffers entries and writes them in batches. Throws when `filePath` is blank or an option is out of range.
 
 **Parameters:**
 
@@ -144,28 +138,25 @@ Creates a new `JappendWriter` instance for buffered operations.
 
 #### `WriterOptions`
 
-- `bufferFlushThreshold` (number, default: `1`): maximum number of entries to buffer before automatically flushing to file.
-  If the buffer is exceeded and new data comes in during the flush it is still buffered and will be eventually flushed.
+- `bufferFlushThreshold` (positive integer or `Infinity`, default: `1`): the buffered entry count that makes `append` flush. A running flush also writes the entries appended before it closes the file. An entry appended while it closes the file waits for the next flush.
 - `pretty` (boolean, default: `true`): format JSON with indentation for human readability
 - `indent` (number, default: `2`): number of spaces for indentation when `pretty` is `true`
-- `initArray` (boolean, default: `true`): automatically initialize empty file with `[]` array
-- `fileOpen` (function, optional): custom file opener for simplified testing (defaults to `fs.open`)
-- `suppressThresholdFlushErrors` (boolean, default: `false`): if `true`, errors thrown during automatic flushes triggered by the buffer threshold writes
-  are suppressed and logged instead of thrown (enables fire-and-forget pattern). Calling `flush` will still throw errors.
-- `logger` (object, optional): custom logger with an `error` method for error reporting (defaults to `console.error`)
+- `initArray` (boolean, default: `true`): create a missing file and start an empty file with the array. With `false`, a flush to a missing or empty file fails.
+- `fileOpen` (function, default: `fs.open`): opens the file and returns a `MinimalFileHandle`, such as an `InMemoryFileHandle` in a test
+- `suppressThresholdFlushErrors` (boolean, default: `false`): with `true`, a flush that `append` starts on reaching the threshold logs its error to `logger` instead of rejecting (fire-and-forget mode). `flush` still rejects.
+- `logger` (object with an `error(message)` method, default: `console.error`): receives the errors that `suppressThresholdFlushErrors` keeps from `append`
 
 ### `JappendWriter` Class Methods
 
 #### `append(data: any): Promise<void>`
 
-Adds data to the buffer. Automatically flushes when the buffer is full.
+Adds data to the buffer and flushes when the buffer reaches `bufferFlushThreshold`. After `flush({ shutdown: true })`, `append` drops the data.
 
-#### `flush(options?: { shutdown: boolean }): Promise<void>`
+#### `flush(options?: { shutdown?: boolean }): Promise<void>`
 
-Manually flushes all buffered entries to the file. If `shutdown` is `true` (default is `false`), it stops accepting new entries.
-Safe to call multiple times, it will only flush once.
+Writes all buffered entries to the file. A call made while a flush runs returns that flush. With `shutdown: true` (default `false`), later `append` calls drop their data. A failed flush keeps its entries buffered, so the next flush retries them.
 
-## 🎯 Use Case Ideas (from GPT)
+## 🎯 Use Cases
 
 ### Logging System
 
@@ -190,7 +181,7 @@ function shutdown() {
       process.exit(0);
     })
     .catch((error) => {
-      console.error("Failed to flush sensor data:", error);
+      console.error("Failed to flush logs:", error);
       process.exit(1);
     });
 }
@@ -283,6 +274,9 @@ mise run setup
 ### Testing
 
 ```bash
+# Run the linters, the build and every test, as before a commit
+mise run check
+
 # Run unit and integration tests
 bun run test
 
@@ -301,18 +295,16 @@ bun run benchmark
 
 ### Testing Your Code
 
-The library provides an `InMemoryFileHandle` class for testing purposes, which implements the `MinimalFileHandle` interface (a subset of Node.js file handle methods) and operates entirely in memory:
+The package ships an `InMemoryFileHandle` class for tests. It implements `MinimalFileHandle`, the subset of the Node.js `FileHandle` methods that `jappend` calls, and keeps the file content in memory. It writes only strings and reads only into a `Buffer`.
 
 ```typescript
 import { jappend } from "jappend";
 import { InMemoryFileHandle } from "jappend/dist/tests/InMemoryFileHandle";
 
-// Create an in-memory file handle for testing
 const inMemoryFileHandle = new InMemoryFileHandle({
   initialContent: JSON.stringify([{ existing: "data" }], null, 2),
 });
 
-// Use it in your tests
 await jappend(
   "/test-file",
   { new: "entry" },
@@ -321,15 +313,8 @@ await jappend(
   },
 );
 
-// Check the result
 console.log(inMemoryFileHandle.content);
 ```
-
-This approach allows you to:
-
-- Test without creating actual files
-- Run tests faster and more reliably
-- Easily verify the exact file contents after operations
 
 ### Building
 
@@ -339,28 +324,25 @@ bun run build
 
 ## 📊 Performance
 
-This library is designed for memory efficient scenarios. Here are benchmark results for writing 50,000 entries to a file already containing 200,000 entries:
+Benchmark results for writing 50,000 entries to a file that already holds 200,000 entries. Memory usage is the change in heap use:
 
-| Method                            | Time    | Memory Usage | Description                                      |
-| --------------------------------- | ------- | ------------ | ------------------------------------------------ |
-| `JSON.stringify` (traditional)    | 2037ms  | 4528MB       | Load entire file, parse, modify, stringify       |
-| `JappendWriter` (buffered)        | 637ms   | 256MB        | Buffered writes (10,000 entries)                 |
-| `JappendWriter` (infinite buffer) | 657ms   | 870MB        | Single flush at the end                          |
-| `JappendWriter` (fire-and-forget) | 695ms   | 756MB        | Buffered writes (10,000) entries fire-and-forget |
-| `jappend` (unbuffered)            | 12381ms | 11MB         | Write each entry individually                    |
+| Method                            | Time    | Memory Usage | Description                                       |
+| --------------------------------- | ------- | ------------ | ------------------------------------------------- |
+| `JSON.stringify` (traditional)    | 2037ms  | 4528MB       | Load entire file, parse, modify, stringify        |
+| `JappendWriter` (buffered)        | 637ms   | 256MB        | Buffered writes (10,000 entries)                  |
+| `JappendWriter` (infinite buffer) | 657ms   | 870MB        | Single flush at the end                           |
+| `JappendWriter` (fire-and-forget) | 695ms   | 756MB        | Buffered writes (10,000 entries), fire-and-forget |
+| `jappend` (unbuffered)            | 12381ms | 11MB         | Write each entry individually                     |
 
-**Key takeaways:**
+Buffered writing gives the best balance of speed and memory. A flush reads only the end of the file, so memory use does not grow with the file size.
 
-- Buffered writing provides the best balance of speed and memory usage
-- Memory usage remains constant regardless of file size
-
-Run the benchmarks yourself:
+Run the benchmarks:
 
 ```bash
 bun run benchmark
 ```
 
-You might need to run the benchmarks multiple times to get the actual memory usage. If you know how make the benchmarks more deterministic, please open an issue or a Pull Request.
+`bun ./benchmark.ts <type>` runs one of them: `default`, `library`, `buffer`, `infinite-buffer` or `fire-and-forget`. The memory figures vary from run to run, so run a benchmark several times.
 
 ## 🤝 Contributing
 

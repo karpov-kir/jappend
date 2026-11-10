@@ -4,55 +4,44 @@ import fs from "fs/promises";
 
 import { countNewLinesAndSpacesBeforeLastBracket, removeFirstAndLastBrackets } from "./utils";
 
-/**
- * A minimal interface for a file handle that supports basic file operations.
- * Subset of {@link fs.FileHandle} that includes only the methods needed for appending data to a JSON file.
- * @typedef {Object} MinimalFileHandle
- * @property {function} read - Reads data from the file
- * @property {function} write - Writes data to the file
- * @property {function} close - Closes the file handle
- * @property {function} truncate - Truncates the file to a specified length
- * @property {function} stat - Gets the file statistics
- */
+/** Lists the `FileHandle` methods the writer calls. A test can pass an `InMemoryFileHandle`. */
 export type MinimalFileHandle = Pick<FileHandle, "read" | "write" | "close" | "truncate" | "stat">;
 
-/**
- * Options for the {@link JappendWriter} class.
- * @typedef {Object} WriterOptions
- * @property {number} [bufferFlushThreshold=1] - The maximum number of entries to buffer before flushing to the file.
- * If the buffer is exceeded and new data comes in during the flush it is still buffered and will be eventually flushed.
- * @property {function} fileOpen - A function to open the file and returns {@link MinimalFileHandle}, defaults to {@link fs.open}.
- * @property {boolean} [pretty=true] - Whether to format the JSON with indentation.
- * @property {number} [indent=2] - The number of spaces to use for indentation if `pretty` is `true`.
- * @property {boolean} [initArray=true] - Whether to initialize the file with an empty array if the file is empty or does not exist.
- * @property {boolean} [suppressThresholdFlushErrors=false] - if `true`, errors thrown during automatic flushes triggered by the buffer threshold writes
- * are suppressed and logged instead of thrown (enables fire-and-forget pattern). Calling `flush` will still throw errors.
- * @property {Object} [logger] - Custom logger for error reporting. Should have an `error` method. Defaults to `console.error`.
- */
 export interface WriterOptions {
+  /**
+   * Sets the buffered entry count that makes `append` flush: a positive integer or `Infinity`.
+   * Defaults to `1`. A running flush also writes the entries appended before it closes the file. An
+   * entry appended while it closes the file waits for the next flush.
+   */
   bufferFlushThreshold?: number;
+  /** Opens the file. Defaults to `fs.open`. A test can return an `InMemoryFileHandle` instead. */
   fileOpen?: (path: PathLike, flags?: string | number, mode?: Mode) => Promise<MinimalFileHandle>;
+  /** Formats the JSON with newlines and `indent` spaces. Defaults to `true`. */
   pretty?: boolean;
+  /** Sets the spaces per indent level when `pretty` is `true`. Defaults to `2`. */
   indent?: number;
+  /**
+   * Creates a missing file and starts the array in an empty file. Defaults to `true`. With `false`,
+   * a flush to a missing or empty file fails.
+   */
   initArray?: boolean;
+  /**
+   * Makes `append` send a failed threshold flush to `logger` instead of rejecting, so a caller can
+   * leave `append` unawaited. Defaults to `false`. `flush` still rejects.
+   */
   suppressThresholdFlushErrors?: boolean;
+  /**
+   * Receives the errors that `suppressThresholdFlushErrors` keeps from `append`. Defaults to
+   * `console.error`.
+   */
   logger?: {
-    /**
-     * Called when an error occurs during a threshold-triggered flush if `suppressThresholdFlushErrors` is `true`.
-     * @param {string} message - The error message to log.
-     */
     error: (message: string) => void;
   };
 }
 
 /**
- * A class that manages the buffering and flushing of data to a JSON file.
- * It allows appending data to a JSON array in a file, ensuring that the file
- * remains a valid JSON array format.
- *
- * @class JappendWriter
- * @param {string} filePath - The path to the JSON file.
- * @param {WriterOptions} options - The options for the jappendWriter.
+ * Buffers entries and appends them to the JSON array in a file. A flush reads only the end of the
+ * file, so memory use does not grow with the file size.
  */
 export class JappendWriter {
   private readonly buffer: unknown[] = [];
@@ -88,6 +77,10 @@ export class JappendWriter {
     return this.buffer.length >= this.options.bufferFlushThreshold;
   }
 
+  /**
+   * Buffers `newData` and flushes when the buffer reaches `bufferFlushThreshold`. After a shutdown
+   * flush, drops `newData`.
+   */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async append(newData: any) {
     if (this.isShutdown) {
@@ -217,12 +210,9 @@ export class JappendWriter {
   }
 
   /**
-   * Flushes the buffered data to the file.
-   * If `shutdown` is `true`, it will stop accepting new data and flush the buffer.
-   * Safe to call multiple times, it will only flush once.
-   * @param {Object} options - Options for flushing.
-   * @param {boolean} [options.shutdown=false] - Whether stop accepting new data.
-   * @returns {Promise<void>} A promise that resolves when the flush is complete.
+   * Writes the buffered entries to the file. A call made while a flush runs returns that flush.
+   * With `shutdown`, later `append` calls drop their data. A failed flush keeps its entries
+   * buffered.
    */
   async flush({ shutdown }: { shutdown?: boolean } = {}) {
     if (this.flushPromise) {
