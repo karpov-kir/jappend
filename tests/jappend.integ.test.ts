@@ -33,6 +33,16 @@ test("appends multiple entries", async () => {
   ]);
 });
 
+test("appends after entries with non-ASCII text", async () => {
+  const testJsonFilePath = await createTestJsonFileWithContent([]);
+
+  await jappend(testJsonFilePath, "ääää");
+  await jappend(testJsonFilePath, { emoji: "😀" });
+  await jappend(testJsonFilePath, 2, { pretty: false });
+
+  await verifyFileContent(testJsonFilePath, ["ääää", { emoji: "😀" }, 2]);
+});
+
 test("creates a new file if it does not exist", async () => {
   const testJsonFilePath = createTestJsonFilePath();
 

@@ -3,15 +3,19 @@ import type { FileReadOptions, FileReadResult } from "fs/promises";
 
 import type { MinimalFileHandle } from "../src/JappendWriter";
 
+/**
+ * Keeps a file's content in memory as bytes, as a real file does, and stands in for a `FileHandle`.
+ */
 export class InMemoryFileHandle implements MinimalFileHandle {
-  #content: string;
+  #content: Buffer;
 
   public constructor({ initialContent }: { initialContent?: string } = {}) {
-    this.#content = initialContent ?? "";
+    this.#content = Buffer.from(initialContent ?? "");
   }
 
+  /** Returns the content decoded as UTF-8. */
   public get content() {
-    return this.#content;
+    return this.#content.toString();
   }
 
   stat(opts?: (StatOptions & { bigint?: false | undefined }) | undefined): Promise<Stats>;
@@ -58,56 +62,87 @@ export class InMemoryFileHandle implements MinimalFileHandle {
       );
     }
 
-    const data = this.#content.slice(position, position + length);
+    const start = Math.min(position, this.#content.length);
+    const bytesRead = this.#content.copy(buffer, offset, start, start + length);
 
-    buffer.fill(data, offset, offset + data.length);
-
-    return Promise.resolve({
-      bytesRead: data.length,
-    } as FileReadResult<T>);
+    return Promise.resolve({ bytesRead } as FileReadResult<T>);
   }
 
+  /**
+   * Writes a string, or bytes of a `Buffer` from `offset`, at `position`, overwriting what is
+   * there. A missing position writes at the end. A string write returns the whole content as
+   * `buffer`.
+   */
   write<TBuffer extends Uint8Array>(
-    bufferOrData: TBuffer | string,
+    buffer: TBuffer,
+    offset?: number | null,
+    length?: number | null,
+    position?: number | null,
+  ): Promise<{ bytesWritten: number; buffer: TBuffer }>;
+  write<TBuffer extends Uint8Array>(
+    buffer: TBuffer,
+    options?: { offset?: number; length?: number; position?: number },
+  ): Promise<{ bytesWritten: number; buffer: TBuffer }>;
+  write(
+    data: string,
+    position?: number | null,
+    encoding?: BufferEncoding | null,
+  ): Promise<{ bytesWritten: number; buffer: string }>;
+  write(
+    bufferOrData: Uint8Array | string,
     offsetOrOptionsOrPosition?:
       | number
       | null
       | { offset?: number; length?: number; position?: number },
-  ): Promise<{
-    bytesWritten: number;
-    buffer: string;
-  }> {
-    const data = bufferOrData;
+    lengthOrEncoding?: number | null | BufferEncoding,
+    bufferPosition?: number | null,
+  ): Promise<{ bytesWritten: number; buffer: Uint8Array | string }> {
+    let bytes: Buffer;
+    let position: number | null | undefined;
 
-    if (typeof data !== "string") {
-      throw new Error(`${InMemoryFileHandle.name} only supports string for write operations`);
+    if (typeof bufferOrData === "string") {
+      if (typeof offsetOrOptionsOrPosition === "object" && offsetOrOptionsOrPosition !== null) {
+        throw new Error(`${InMemoryFileHandle.name} takes a number as the position of a string`);
+      }
+      bytes = Buffer.from(bufferOrData);
+      position = offsetOrOptionsOrPosition;
+    } else {
+      const options =
+        typeof offsetOrOptionsOrPosition === "object" && offsetOrOptionsOrPosition !== null
+          ? offsetOrOptionsOrPosition
+          : {
+              offset: offsetOrOptionsOrPosition ?? undefined,
+              length: typeof lengthOrEncoding === "number" ? lengthOrEncoding : undefined,
+              position: bufferPosition ?? undefined,
+            };
+      const offset = options.offset ?? 0;
+      const length = options.length ?? bufferOrData.byteLength - offset;
+
+      bytes = Buffer.from(bufferOrData.subarray(offset, offset + length));
+      position = options.position;
     }
 
-    let position = offsetOrOptionsOrPosition;
+    const at = position ?? this.#content.length;
 
-    if (position !== undefined && (typeof position !== "number" || !Number.isInteger(position))) {
+    if (!Number.isInteger(at)) {
       throw new Error(
         `${InMemoryFileHandle.name} requires integer position to be specified for write operations`,
       );
     }
 
-    if (position === undefined) {
-      position = this.#content.length;
-    }
-
-    if (position < 0 || position > this.#content.length) {
+    if (at < 0 || at > this.#content.length) {
       throw new Error(`${InMemoryFileHandle.name} position out of bounds`);
     }
 
-    this.#content =
-      this.#content.slice(0, position) + data + this.#content.slice(position + data.length);
+    this.#content = Buffer.concat([
+      this.#content.subarray(0, at),
+      bytes,
+      this.#content.subarray(at + bytes.length),
+    ]);
 
     return Promise.resolve({
-      bytesWritten: data.length,
-      buffer: this.#content,
-    } as {
-      bytesWritten: number;
-      buffer: string;
+      bytesWritten: bytes.length,
+      buffer: typeof bufferOrData === "string" ? this.content : bufferOrData,
     });
   }
 
@@ -116,7 +151,7 @@ export class InMemoryFileHandle implements MinimalFileHandle {
   }
 
   async truncate(length?: number): Promise<void> {
-    this.#content = this.#content.slice(0, length ?? this.#content.length);
+    this.#content = this.#content.subarray(0, length ?? this.#content.length);
     return Promise.resolve();
   }
 }

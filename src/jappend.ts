@@ -12,7 +12,10 @@ export interface JappendOptions {
   initArray?: boolean;
   /** Sets the spaces per indent level when `pretty` is `true`. Defaults to `2`. */
   indent?: number;
-  /** Opens the file. Defaults to `fs.open`. A test can return an `InMemoryFileHandle` instead. */
+  /**
+   * Opens the file. Defaults to `fs.open`. A test can return an `InMemoryFileHandle` instead. Must
+   * not open the file in append mode: the writer writes at positions, which Linux ignores there.
+   */
   fileOpen?: (path: PathLike, flags?: string | number, mode?: Mode) => Promise<MinimalFileHandle>;
 }
 

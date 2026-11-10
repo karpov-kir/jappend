@@ -1,3 +1,4 @@
+import { constants } from "fs";
 import { describe, expect, test, vi } from "vitest";
 
 import { InMemoryFileHandle } from "../tests/InMemoryFileHandle";
@@ -79,9 +80,8 @@ describe("File handling", () => {
 
     await jappendWriter.append({ test: [1] });
 
-    const createFileIfItDoesNotExistMode = "a+";
-
-    expect(fileOpen).toHaveBeenCalledWith("/file", createFileIfItDoesNotExistMode);
+    // Read-write without append mode, so a write lands at the position it names.
+    expect(fileOpen).toHaveBeenCalledWith("/file", constants.O_RDWR | constants.O_CREAT);
   });
 
   test("does not create a new file if `initArray` is false", async () => {
@@ -227,6 +227,161 @@ describe("Flushing", () => {
     await jappendWriter.append({ test: [1] });
 
     await Promise.all([jappendWriter.flush(), jappendWriter.append({ test: [2] })]);
+
+    expect(inMemoryFileHandle.content).toBe(
+      JSON.stringify([{ test: [1] }, { test: [2] }], null, 2),
+    );
+  });
+
+  test("opens the file once for entries appended while it writes, and closes it", async () => {
+    const inMemoryFileHandle = new InMemoryFileHandle();
+    const fileOpen = vi.fn(async () => inMemoryFileHandle);
+    const jappendWriter = newJappendWriter("/file", { fileOpen, bufferFlushThreshold: 5 });
+    const write = inMemoryFileHandle.write.bind(inMemoryFileHandle);
+
+    vi.spyOn(inMemoryFileHandle, "close");
+    vi.spyOn(inMemoryFileHandle, "write").mockImplementationOnce((async (
+      bytes: Uint8Array,
+      offset?: number | null,
+      length?: number | null,
+      position?: number | null,
+    ) => {
+      await jappendWriter.append({ test: [2] });
+      return write(bytes, offset, length, position);
+    }) as typeof inMemoryFileHandle.write);
+
+    await jappendWriter.append({ test: [1] });
+    await jappendWriter.flush();
+
+    expect(inMemoryFileHandle.content).toBe(
+      JSON.stringify([{ test: [1] }, { test: [2] }], null, 2),
+    );
+    expect(fileOpen).toHaveBeenCalledTimes(1);
+    expect(inMemoryFileHandle.close).toHaveBeenCalledTimes(1);
+  });
+
+  test("writes an entry appended while the file closes in the same flush", async () => {
+    const inMemoryFileHandle = new InMemoryFileHandle();
+    const fileOpen = vi.fn(async () => inMemoryFileHandle);
+    const jappendWriter = newJappendWriter("/file", { fileOpen, bufferFlushThreshold: 5 });
+
+    vi.spyOn(inMemoryFileHandle, "close").mockImplementationOnce(async () => {
+      await jappendWriter.append({ test: [2] });
+    });
+
+    await jappendWriter.append({ test: [1] });
+    await jappendWriter.flush();
+
+    expect(inMemoryFileHandle.content).toBe(
+      JSON.stringify([{ test: [1] }, { test: [2] }], null, 2),
+    );
+    expect(fileOpen).toHaveBeenCalledTimes(2);
+    expect(inMemoryFileHandle.close).toHaveBeenCalledTimes(2);
+  });
+
+  test("puts back only the failed batch when a later pass on the same file fails", async () => {
+    const inMemoryFileHandle = new InMemoryFileHandle();
+    const jappendWriter = newJappendWriter("/file", {
+      fileOpen: async () => inMemoryFileHandle,
+      bufferFlushThreshold: 5,
+    });
+    const write = inMemoryFileHandle.write.bind(inMemoryFileHandle);
+    const stat = inMemoryFileHandle.stat.bind(inMemoryFileHandle);
+
+    vi.spyOn(inMemoryFileHandle, "close");
+    vi.spyOn(inMemoryFileHandle, "write").mockImplementationOnce((async (
+      bytes: Uint8Array,
+      offset?: number | null,
+      length?: number | null,
+      position?: number | null,
+    ) => {
+      await jappendWriter.append({ test: [2] });
+      return write(bytes, offset, length, position);
+    }) as typeof inMemoryFileHandle.write);
+    vi.spyOn(inMemoryFileHandle, "stat")
+      .mockImplementationOnce((() => stat()) as typeof inMemoryFileHandle.stat)
+      .mockRejectedValueOnce(new Error("Stat error"));
+
+    await jappendWriter.append({ test: [1] });
+
+    await expect(jappendWriter.flush()).rejects.toThrow("Stat error");
+    expect(inMemoryFileHandle.content).toBe(JSON.stringify([{ test: [1] }], null, 2));
+    expect(inMemoryFileHandle.close).toHaveBeenCalledTimes(1);
+
+    await jappendWriter.flush();
+
+    expect(inMemoryFileHandle.content).toBe(
+      JSON.stringify([{ test: [1] }, { test: [2] }], null, 2),
+    );
+  });
+
+  test("keeps the file a valid array when a write fails, and the next flush writes correctly", async () => {
+    const inMemoryFileHandle = new InMemoryFileHandle({
+      initialContent: JSON.stringify([{ test: [1] }], null, 2),
+    });
+    const jappendWriter = newJappendWriter("/file", {
+      fileOpen: async () => inMemoryFileHandle,
+      bufferFlushThreshold: 5,
+    });
+
+    vi.spyOn(inMemoryFileHandle, "write").mockRejectedValueOnce(new Error("Write error"));
+
+    await jappendWriter.append({ test: [2] });
+
+    await expect(jappendWriter.flush()).rejects.toThrow("Write error");
+    expect(JSON.parse(inMemoryFileHandle.content)).toEqual([{ test: [1] }]);
+
+    await jappendWriter.flush();
+
+    expect(inMemoryFileHandle.content).toBe(
+      JSON.stringify([{ test: [1] }, { test: [2] }], null, 2),
+    );
+  });
+
+  test("pads the entries to cover a closing tail longer than they are", async () => {
+    const initialContent = "[\n  1" + " ".repeat(40) + "\n]";
+    const inMemoryFileHandle = new InMemoryFileHandle({ initialContent });
+    const jappendWriter = newJappendWriter("/file", { fileOpen: async () => inMemoryFileHandle });
+
+    await jappendWriter.append(2);
+
+    expect(JSON.parse(inMemoryFileHandle.content)).toEqual([1, 2]);
+    expect(inMemoryFileHandle.content.length).toBe(initialContent.length);
+  });
+
+  test("writes the bytes of entries with non-ASCII text", async () => {
+    const inMemoryFileHandle = new InMemoryFileHandle({
+      initialContent: "[\n  1" + " ".repeat(40) + "\n]",
+    });
+    const jappendWriter = newJappendWriter("/file", { fileOpen: async () => inMemoryFileHandle });
+
+    await jappendWriter.append("ääää");
+    await jappendWriter.append("ü€😀");
+
+    expect(JSON.parse(inMemoryFileHandle.content)).toEqual([1, "ääää", "ü€😀"]);
+  });
+
+  test("writes the rest of the entries after a short write", async () => {
+    const inMemoryFileHandle = new InMemoryFileHandle({
+      initialContent: JSON.stringify([{ test: [1] }], null, 2),
+    });
+    const jappendWriter = newJappendWriter("/file", { fileOpen: async () => inMemoryFileHandle });
+    const write = inMemoryFileHandle.write.bind(inMemoryFileHandle);
+
+    vi.spyOn(inMemoryFileHandle, "write").mockImplementationOnce(((
+      bytes: Uint8Array,
+      offset?: number | null,
+      length?: number | null,
+      position?: number | null,
+    ) =>
+      write(
+        bytes,
+        offset,
+        Math.min(Number(length), 3),
+        position,
+      )) as typeof inMemoryFileHandle.write);
+
+    await jappendWriter.append({ test: [2] });
 
     expect(inMemoryFileHandle.content).toBe(
       JSON.stringify([{ test: [1] }, { test: [2] }], null, 2),
