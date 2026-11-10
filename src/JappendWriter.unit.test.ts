@@ -334,9 +334,7 @@ describe("Fire-and-forget", () => {
 
     vi.spyOn(inMemoryFileHandle, "write").mockRejectedValueOnce(new Error("Write error"));
 
-    // Should not throw unhandled errors
     jappendWriter.append({ test: [1] });
-    // This one should trigger flushing and throw an error but suppress it
     await jappendWriter.append({ test: [2] });
 
     expect(inMemoryFileHandle.write).toHaveBeenCalledTimes(1);

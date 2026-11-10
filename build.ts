@@ -31,8 +31,8 @@ async function patchImportsPaths() {
 }
 
 /**
- * Formats the built JS and declaration files with oxfmt. oxfmt skips git-ignored `dist` when it walks a directory, so the
- * function names each file.
+ * Formats the built JS and declaration files with oxfmt. oxfmt skips the git-ignored `dist` when it
+ * walks a directory, so the function names each file.
  */
 async function formatDist() {
   const files = await readdir("dist", { recursive: true });

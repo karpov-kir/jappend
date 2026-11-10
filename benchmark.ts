@@ -116,7 +116,7 @@ async function appendBigJsonFileUsingJappendFireAndForget() {
 
   await appendToBigJsonFile({
     appendStrategy: async (i) => {
-      // Fire-and-forget: intentionally do not await the append call
+      // Leaves `append` unawaited: this benchmark measures the fire-and-forget mode.
       jappendWriter.append(createEntry(i));
     },
     onDone: async () => {

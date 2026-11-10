@@ -1,6 +1,5 @@
 {
   "compilerOptions": {
-    // Environment setup & latest features
     "lib": ["ES2022"],
     "target": "ES2022",
     "module": "Preserve",
@@ -9,13 +8,13 @@
     "verbatimModuleSyntax": true,
     "noEmit": true,
 
-    // Best practices
     "strict": true,
     "skipLibCheck": true,
     "noFallthroughCasesInSwitch": true,
     "noUncheckedIndexedAccess": true,
     "noImplicitOverride": true
   },
-  // dist is build output, which the build rewrites while `lint:tsc` runs beside it.
+  // `mise run check` runs the build beside `lint:tsc`, and the build rewrites `dist` as tsc
+  // reads it.
   "exclude": ["dist"]
 }

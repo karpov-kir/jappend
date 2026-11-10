@@ -2,26 +2,23 @@ import type { Mode, PathLike } from "fs";
 
 import { JappendWriter, type MinimalFileHandle, type WriterOptions } from "./JappendWriter";
 
-/**
- * Options for appending data to a JSON file.
- * @typedef {Object} JappendOptions.
- * @property {boolean} [pretty=true] - Whether to format the JSON with indentation.
- * @property {boolean} [initArray=true] - Whether to initialize the file with an empty array if the file is empty or does not exist.
- * @property {number} [indent=2] - The number of spaces to use for indentation if `pretty` is `true`.
- * @property {function} [fileOpen=fs.open] - A function to open the file, defaults to {@link WriterOptions.fileOpen}.
- */
 export interface JappendOptions {
+  /** Formats the JSON with newlines and `indent` spaces. Defaults to `true`. */
   pretty?: boolean;
+  /**
+   * Creates a missing file and starts the array in an empty file. Defaults to `true`. With `false`,
+   * an append to a missing or empty file fails.
+   */
   initArray?: boolean;
+  /** Sets the spaces per indent level when `pretty` is `true`. Defaults to `2`. */
   indent?: number;
+  /** Opens the file. Defaults to `fs.open`. A test can return an `InMemoryFileHandle` instead. */
   fileOpen?: (path: PathLike, flags?: string | number, mode?: Mode) => Promise<MinimalFileHandle>;
 }
 
 /**
- * @param filePath - The path to the JSON file.
- * @param newData - The data to append to the JSON file.
- * @param options - {@link JappendOptions} for appending data to the JSON file
- * @returns {Promise<void>} A promise that resolves when the data has been appended to the file.
+ * Appends `newData` as one entry to the JSON array in `filePath`. Each call opens and closes the
+ * file, so {@link newJappendWriter} is faster for many entries.
  */
 export async function jappend(
   filePath: string,
@@ -38,10 +35,8 @@ export async function jappend(
 }
 
 /**
- *
- * @param filePath - The path to the JSON file.
- * @param options - {@link WriterOptions} for the jappendWriter.
- * @returns - A new instance of {@link JappendWriter} (supports buffering) that can be used to append data to the JSON file.
+ * Returns a {@link JappendWriter} that buffers entries for `filePath` and writes them in batches.
+ * Throws when `filePath` is blank or an option is out of range.
  */
 export function newJappendWriter(filePath: string, options: WriterOptions = {}): JappendWriter {
   return new JappendWriter(filePath, options);

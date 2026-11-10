@@ -32,7 +32,8 @@ jobs:
         uses: actions/checkout@v7
         with:
           ref: ${{ inputs.github-ref || github.sha }}
-          # `setup` runs third-party install scripts, so the write token stays out of .git/config until the release step.
+          # `setup` runs third-party install scripts, so the write token stays out of .git/config
+          # until the release step.
           persist-credentials: false
 
       - name: Configure Git identity

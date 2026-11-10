@@ -1,13 +1,13 @@
 #!/bin/bash
 
-# Publishes the package to the NPM registry, commits the changes, and creates a new GIT tag, pushes them to the remote repository.
+# Commits and tags VERSION, publishes the package to npm and pushes the commit and tag. The Release
+# workflow runs it with `npm run release` from the package root on a clean `main`.
 #
-# Expected environment variables:
-#   - NPM_PUBLISH_TOKEN: [REQUIRED] The NPM access token to publish the package.
-#   - VERSION: [REQUIRED] The version of the package to publish.
-#   - DRY_RUN: [OPTIONAL] If set to `true`, the package is not published to the NPM registry,
-#     the commit and GIT tag are not pushed to the remote repository (the command is executed as a dry run).
-#   - SKIP_CHANGELOG_UPDATE: [OPTIONAL] If set to `true`, the CHANGELOG.md file is not updated.
+# Environment:
+#   NPM_PUBLISH_TOKEN      required, the npm token that publishes the package
+#   VERSION                required, the version to release
+#   DRY_RUN                `true` commits and tags locally but publishes and pushes nothing
+#   SKIP_CHANGELOG_UPDATE  `true` leaves CHANGELOG.md alone
 
 set -e
 
@@ -37,7 +37,6 @@ if [ "$DRY_RUN" = true ]; then
   echo "!!!! DRY RUN MODE !!!!"
 fi
 
-# Check if we are on the main branch
 if [ "$(git rev-parse --abbrev-ref HEAD)" != "main" ]; then
   echo "You must be on the main branch to publish to the NPM registry."
   exit 1
@@ -47,7 +46,6 @@ echo "Verifying NPM credentials"
 
 npm config set registry https://registry.npmjs.org
 
-# Set the NPM token and check if the token is valid.
 export NPM_CONFIG_USERCONFIG="$PWD/release/.npmrc"
 echo "//registry.npmjs.org/:_authToken=${NPM_PUBLISH_TOKEN}" > ./release/.npmrc
 npm whoami
@@ -57,7 +55,8 @@ if [ "$SKIP_CHANGELOG_UPDATE" != true ]; then
 
   currentDate=$(date '+%Y-%m-%d')
   newReleasedContent="## [Unreleased]\n\n## ${VERSION} - ${currentDate}"
-  # Replace the current unreleased header with the new released header followed by the new version content.
+  # Moves the unreleased entries under the new version and leaves an empty `## [Unreleased]`
+  # above it.
   sed "s/## \[Unreleased\]/${newReleasedContent}/" ./CHANGELOG.md > CHANGELOG.tmp.md
   mv -f CHANGELOG.tmp.md CHANGELOG.md
 
@@ -66,8 +65,7 @@ fi
 
 echo "Updating the version and committing the changes"
 
-# Updates the package.json, pacakge-lock.json, files, commits the changes, and creates a new GIT tag.
-# Use `--force` to allow CHANGELOG.md changes to be committed as well.
+# `--force` lets `npm version` run with CHANGELOG.md staged, and its version commit takes the file.
 npm version "$VERSION" --force
 
 echo "Publishing the package to the NPM registry"
